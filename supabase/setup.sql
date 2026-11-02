@@ -1,7 +1,8 @@
 -- HiSeoul (하이서울) database schema for Supabase.
--- Run once in Supabase > SQL Editor. Safe to re-run: it drops and recreates
+-- Run once in Supabase > SQL Editor.
 -- Re-running it RESETS all HiSeoul tables (products, orders, staff) to the
 -- sample data. 다시 실행하면 모든 데이터가 예시 데이터로 초기화돼요.
+
 -- ---------------------------------------------------------------------------
 -- Clean re-run
 -- ---------------------------------------------------------------------------
