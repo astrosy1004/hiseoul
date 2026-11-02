@@ -6,6 +6,7 @@
 -- ---------------------------------------------------------------------------
 -- Clean re-run
 -- ---------------------------------------------------------------------------
+drop table if exists public.order_events cascade;
 drop table if exists public.order_lines cascade;
 drop table if exists public.orders cascade;
 drop table if exists public.rankings cascade;
@@ -83,6 +84,8 @@ create table public.orders (
   -- pending = waiting for payment; cancelled = payment failed or order cancelled
   status             text not null default 'pending' check (status in ('pending','paid','purchased','delivering','delivered','cancelled')),
   handover_photo_url text,
+  locale             text not null default 'en' check (locale in ('en','ko','ja','zh-CN','zh-TW')),  -- language for emails
+  notified_status    text,              -- last status we emailed the guest about
   updated_at         timestamptz not null default now()
 );
 create index orders_delivery_date_idx on public.orders (delivery_date, status);
@@ -93,6 +96,14 @@ create table public.order_lines (
   qty            integer not null check (qty > 0),
   unit_price_krw integer not null,
   primary key (order_id, product_id)
+);
+
+-- When each status was reached (shown on the guest's tracking page).
+create table public.order_events (
+  order_id text not null references public.orders(id) on delete cascade,
+  status   text not null,
+  at       timestamptz not null default now(),
+  primary key (order_id, status)
 );
 
 -- Business settings, one row. Owner can change fees without a code release.
@@ -150,8 +161,9 @@ $$;
 -- Guest order lookup: order number + email, no account needed.
 create or replace function public.lookup_order(p_id text, p_email text) returns jsonb
 language sql stable security definer set search_path = public as $$
-  select to_jsonb(o) || jsonb_build_object('lines',
-           coalesce((select jsonb_agg(to_jsonb(l)) from public.order_lines l where l.order_id = o.id), '[]'::jsonb))
+  select (to_jsonb(o) - 'notified_status') || jsonb_build_object(
+           'lines', coalesce((select jsonb_agg(to_jsonb(l)) from public.order_lines l where l.order_id = o.id), '[]'::jsonb),
+           'events', coalesce((select jsonb_object_agg(e.status, e.at) from public.order_events e where e.order_id = o.id), '{}'::jsonb))
     from public.orders o
    where upper(o.id) = upper(trim(p_id)) and lower(o.email) = lower(trim(p_email))
 $$;
@@ -200,10 +212,11 @@ begin
   if v_ok <> v_lines then raise exception 'unavailable_item'; end if;
 
   insert into public.orders (email, guest_name, hotel_id, room, delivery_date, slot,
-                             items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status)
+                             items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status, locale)
   values (lower(trim(p ->> 'email')), trim(p ->> 'guest_name'), p ->> 'hotel_id', nullif(trim(coalesce(p ->> 'room', '')), ''),
           d, p ->> 'slot', v_items, s.service_fee_krw, s.delivery_fee_krw,
-          v_items + s.service_fee_krw + s.delivery_fee_krw, p ->> 'payment_method', 'pending')
+          v_items + s.service_fee_krw + s.delivery_fee_krw, p ->> 'payment_method', 'pending',
+          case when p ->> 'locale' in ('en','ko','ja','zh-CN','zh-TW') then p ->> 'locale' else 'en' end)
   returning id into v_id;
 
   insert into public.order_lines (order_id, product_id, qty, unit_price_krw)
@@ -244,10 +257,42 @@ begin
       left join _old_rank o on o.product_id = t.id;
 end $$;
 
+-- Record when each status is reached.
+create or replace function public.log_order_event() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' or new.status is distinct from old.status then
+    insert into public.order_events (order_id, status) values (new.id, new.status)
+    on conflict (order_id, status) do update set at = now();
+  end if;
+  return new;
+end $$;
+
+-- Server only (secret key): picks the guest email that is due for an order.
+-- Marks it as sent in the same step so two calls never send twice; returns
+-- null when nothing is due. The caller puts p_prev back if sending fails.
+create or replace function public.claim_notification(p_id text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare o public.orders; prev text;
+begin
+  select * into o from public.orders where id = p_id for update;
+  if not found or o.status not in ('paid','delivering','delivered') or o.notified_status is not distinct from o.status then return null; end if;
+  -- Don't send "on the way" after "delivered" was already sent.
+  if o.notified_status = 'delivered' then return null; end if;
+  prev := o.notified_status;
+  update public.orders set notified_status = o.status where id = p_id;
+  return to_jsonb(o) || jsonb_build_object(
+    'prev', prev,
+    'hotel', (select to_jsonb(h) from public.hotels h where h.id = o.hotel_id),
+    'lines', coalesce((select jsonb_agg(jsonb_build_object('qty', l.qty, 'unit_price_krw', l.unit_price_krw, 'name', p.name))
+                         from public.order_lines l join public.products p on p.id = l.product_id where l.order_id = o.id), '[]'::jsonb));
+end $$;
+
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
 create trigger products_touch before update on public.products for each row execute function public.touch_updated_at();
 create trigger orders_touch before update on public.orders for each row execute function public.touch_updated_at();
+create trigger orders_events after insert or update of status on public.orders for each row execute function public.log_order_event();
 
 -- ---------------------------------------------------------------------------
 -- Row level security
@@ -259,6 +304,8 @@ alter table public.staff       enable row level security;
 alter table public.orders      enable row level security;
 alter table public.order_lines enable row level security;
 alter table public.app_settings enable row level security;
+alter table public.order_events enable row level security;
+create policy events_read on public.order_events for select using (public.has_role(array['owner','manager','staff']));
 
 create policy settings_read   on public.app_settings for select using (true);
 create policy settings_write  on public.app_settings for update using (public.has_role(array['owner'])) with check (public.has_role(array['owner']));
@@ -291,13 +338,17 @@ grant execute on function public.create_order(jsonb) to anon, authenticated;
 grant execute on function public.confirm_test_payment(text, text) to anon, authenticated;
 grant execute on function public.save_ranking(text, text[]) to authenticated;
 revoke execute on function public.save_ranking(text, text[]) from public, anon;
+revoke execute on function public.claim_notification(text) from public, anon, authenticated;
+grant execute on function public.claim_notification(text) to service_role;
+revoke execute on function public.log_order_event() from public, anon, authenticated;
 grant execute on function public.staff_me() to authenticated;
 grant execute on function public.staff_list() to authenticated;
 revoke execute on function public.staff_me() from public, anon;
 revoke execute on function public.staff_list() from public, anon;
 
 -- ---------------------------------------------------------------------------
--- Product photos (Supabase Storage). Anyone can view; owner/manager upload.
+-- Photos (Supabase Storage). Anyone can view. Product photos: owner/manager
+-- upload. Handover photos: any staff member uploads.
 -- If this part fails it only prints a notice; the rest of the setup still works.
 -- ---------------------------------------------------------------------------
 do $$
@@ -314,6 +365,14 @@ begin
     using (bucket_id = 'product-images' and public.has_role(array['owner','manager']));
   create policy product_images_delete on storage.objects for delete to authenticated
     using (bucket_id = 'product-images' and public.has_role(array['owner','manager']));
+
+  -- Handover photos: taken by any staff member at the hotel front desk.
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('handover-photos', 'handover-photos', true, 5242880, array['image/jpeg','image/png','image/webp'])
+  on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg','image/png','image/webp'];
+  drop policy if exists handover_photos_insert on storage.objects;
+  create policy handover_photos_insert on storage.objects for insert to authenticated
+    with check (bucket_id = 'handover-photos' and public.has_role(array['owner','manager','staff']));
 exception when others then
-  raise notice 'Product photo storage was not set up: %', sqlerrm;
+  raise notice 'Photo storage was not set up: %', sqlerrm;
 end $$;

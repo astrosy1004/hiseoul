@@ -15,8 +15,8 @@ out.push("insert into public.rankings (region, rank, product_id, change, is_new)
 out.push(rankings.map((r) => `  (${q(r.region)}, ${r.rank}, ${q(r.productId)}, ${r.change === "new" ? 0 : r.change}, ${r.change === "new"})`).join(",\n") + ";");
 out.push("insert into public.hotels (id, name, area) values");
 out.push(hotels.map((h) => `  (${q(h.id)}, ${j(h.name)}, ${q(h.area)})`).join(",\n") + ";");
-out.push("insert into public.orders (id, created_at, email, guest_name, hotel_id, room, delivery_date, slot, items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status) values");
-out.push(sampleOrders.map((o) => `  (${[q(o.id), q(o.createdAt), q(o.email), q(o.guestName), q(o.hotelId), q(o.room), q(o.deliveryDate), q(o.slot), o.itemsKrw, o.serviceFeeKrw, o.deliveryFeeKrw, o.totalKrw, q(o.paymentMethod), q(o.status)].join(", ")})`).join(",\n") + ";");
+out.push("insert into public.orders (id, created_at, email, guest_name, hotel_id, room, delivery_date, slot, items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status, notified_status) values"); // sample orders never email anyone
+out.push(sampleOrders.map((o) => `  (${[q(o.id), q(o.createdAt), q(o.email), q(o.guestName), q(o.hotelId), q(o.room), "(now() at time zone 'Asia/Seoul')::date", q(o.slot), o.itemsKrw, o.serviceFeeKrw, o.deliveryFeeKrw, o.totalKrw, q(o.paymentMethod), q(o.status), q(o.status)].join(", ")})`).join(",\n") + ";");
 out.push("insert into public.order_lines (order_id, product_id, qty, unit_price_krw) values");
 out.push(sampleOrders.flatMap((o) => o.lines.map((l) => `  (${q(o.id)}, ${q(l.productId)}, ${l.qty}, ${l.unitPriceKrw})`)).join(",\n") + ";");
 out.push("commit;", "");

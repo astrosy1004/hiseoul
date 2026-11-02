@@ -29,9 +29,19 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
     return { order, hotel, products };
   }, [id]);
   useEffect(() => { if (!loading && !data) router.replace("/orders/lookup"); }, [loading, data, router]);
+  // While the order is moving, check for updates every minute (and when the guest comes back to the tab).
+  const live = !!data && ["paid", "purchased", "delivering"].includes(data.order.status);
+  useEffect(() => {
+    if (!live) return;
+    const tick = () => { if (document.visibilityState === "visible") reload(); };
+    const timer = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
+  }, [live, reload]);
   if (!data) return (<><TopBar back /><p className="p-10 text-center text-sub">…</p></>);
   const { order, hotel, products } = data;
-  const done = ORDER_FLOW.indexOf(order.status);
+  // The last step counts as finished, not "in progress".
+  const done = ORDER_FLOW.indexOf(order.status) + (order.status === "delivered" ? 1 : 0);
   const isNew = search.get("new") === "1" && order.status === "paid";
   const off = order.status === "pending" || order.status === "cancelled";
 
@@ -74,16 +84,23 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
                   {i < ORDER_FLOW.length - 1 && <span className={`w-0.5 flex-1 ${i < done ? "bg-brand" : "bg-line"}`} />}
                 </div>
                 <div className="flex flex-col pb-5">
-                  <span className={`text-[15px] font-bold ${i <= done ? "" : "text-mute"}`}>{m[`st_${s}`]}</span>
+                  <span className={`text-[15px] font-bold ${i <= done ? "" : "text-mute"}`}>
+                    {m[`st_${s}`]}
+                    {i <= done && order.events?.[s] && <span className="ml-2 text-xs font-semibold text-sub">{new Date(order.events[s]!).toLocaleTimeString(locale, { timeZone: "Asia/Seoul", hour: "2-digit", minute: "2-digit" })}</span>}
+                  </span>
                   <span className="text-[13px] text-sub">{m[`st_${s}_d`]}</span>
                 </div>
               </li>
             ))}
           </ol>
         )}
+        {live && <p className="-mt-4 text-xs text-mute">{m.autoRefresh}</p>}
         {!off && (order.handoverPhotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={order.handoverPhotoUrl} alt="" className="rounded-xl" />
+          <figure className="flex flex-col gap-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={order.handoverPhotoUrl} alt={m.handoverDone} className="max-h-[420px] w-full rounded-xl object-cover" />
+            <figcaption className="text-xs text-sub">{m.handoverDone}</figcaption>
+          </figure>
         ) : (
           <div className="flex h-28 items-center justify-center rounded-xl bg-placeholder text-xs text-mute">{m.handoverPhoto}</div>
         ))}

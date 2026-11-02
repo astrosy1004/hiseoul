@@ -5,11 +5,11 @@ import { hotels, products, rankings, sampleOrders, staff } from "./mock-data";
 import { DELIVERY_FEE_KRW, MAX_QTY_PER_ITEM, MIN_LEAD_HOURS, SAME_DAY_CUTOFF_HOUR, SERVICE_FEE_KRW } from "./config";
 import { deliveryDays, type Settings } from "./delivery";
 import { supabase } from "./supabase";
-import type { CategorySlug, DeliverySlot, Hotel, Order, OrderStatus, PaymentMethod, Product, RankingEntry, Region, Staff } from "./types";
+import type { CategorySlug, Locale, DeliverySlot, Hotel, Order, OrderStatus, PaymentMethod, Product, RankingEntry, Region, Staff } from "./types";
 
 export interface NewOrder {
   email: string; guestName: string; hotelId: string; room?: string;
-  deliveryDate: string; slot: DeliverySlot; paymentMethod: PaymentMethod;
+  deliveryDate: string; slot: DeliverySlot; paymentMethod: PaymentMethod; locale?: Locale;
   lines: { productId: string; qty: number }[];
 }
 /** Error codes from create_order(); the checkout shows a message for each. */
@@ -32,6 +32,7 @@ const toOrder = (r: any): Order => ({
   lines: (r.lines ?? r.order_lines ?? []).map((l: any) => ({ productId: l.product_id, qty: l.qty, unitPriceKrw: l.unit_price_krw })),
   itemsKrw: r.items_krw, serviceFeeKrw: r.service_fee_krw, deliveryFeeKrw: r.delivery_fee_krw, totalKrw: r.total_krw,
   paymentMethod: r.payment_method, status: r.status, handoverPhotoUrl: r.handover_photo_url ?? undefined,
+  events: r.events ?? undefined, locale: r.locale ?? undefined,
 });
 const toStaff = (r: any): Staff => ({
   id: r.id, name: r.name, email: r.email, role: r.role, active: r.active,
@@ -134,7 +135,7 @@ export const repo = {
     if (supabase) {
       const res = await supabase.rpc("create_order", { p: {
         email: o.email, guest_name: o.guestName, hotel_id: o.hotelId, room: o.room ?? "", delivery_date: o.deliveryDate,
-        slot: o.slot, payment_method: o.paymentMethod, lines: o.lines.map((l) => ({ product_id: l.productId, qty: l.qty })),
+        slot: o.slot, payment_method: o.paymentMethod, locale: o.locale ?? "en", lines: o.lines.map((l) => ({ product_id: l.productId, qty: l.qty })),
       } });
       if (res.error) throw orderError(res.error.message);
       const order = await repo.lookupOrder(res.data as string, o.email);
@@ -162,7 +163,7 @@ export const repo = {
       id: `HS-${1043 + mockOrders.length - sampleOrders.length}`, createdAt: new Date().toISOString(), email: o.email.trim().toLowerCase(),
       guestName: o.guestName.trim(), hotelId: o.hotelId, room: o.room?.trim() || undefined, deliveryDate: o.deliveryDate, slot: o.slot, lines,
       itemsKrw, serviceFeeKrw: s.serviceFeeKrw, deliveryFeeKrw: s.deliveryFeeKrw, totalKrw: itemsKrw + s.serviceFeeKrw + s.deliveryFeeKrw,
-      paymentMethod: o.paymentMethod, status: "pending",
+      paymentMethod: o.paymentMethod, status: "pending", locale: o.locale, events: { pending: new Date().toISOString() },
     };
     mockOrders = [order, ...mockOrders];
     return order;
@@ -173,11 +174,12 @@ export const repo = {
     if (supabase) {
       const res = await supabase.rpc("confirm_test_payment", { p_id: id, p_email: email });
       if (res.error) throw orderError(res.error.message);
+      notify(id);
       return;
     }
     const o = mockOrders.find((x) => x.id === id && x.email === email.trim().toLowerCase() && x.status === "pending");
     if (!o) throw new OrderError("not_pending");
-    mockOrders = mockOrders.map((x) => (x.id === id ? { ...x, status: "paid" } : x));
+    mockOrders = mockOrders.map((x) => (x.id === id ? { ...x, status: "paid", events: { ...x.events, paid: new Date().toISOString() } } : x));
   },
 
   /** Staff only (blocked by database rules for everyone else). */
@@ -186,9 +188,23 @@ export const repo = {
     return must(await supabase.from("orders").select("*, order_lines(*)").order("created_at", { ascending: false })).map(toOrder);
   },
 
-  async setOrderStatus(id: string, status: OrderStatus): Promise<void> {
-    if (!supabase) { mockOrders = mockOrders.map((o) => (o.id === id ? { ...o, status } : o)); return; }
-    must(await supabase.from("orders").update({ status }).eq("id", id).select("id").single());
+  /** Staff: next delivery step. A handover photo can come with "delivered". Emails the guest when due. */
+  async setOrderStatus(id: string, status: OrderStatus, handoverPhotoUrl?: string): Promise<void> {
+    if (!supabase) {
+      mockOrders = mockOrders.map((o) => (o.id === id ? { ...o, status, handoverPhotoUrl: handoverPhotoUrl ?? o.handoverPhotoUrl, events: { ...o.events, [status]: new Date().toISOString() } } : o));
+      return;
+    }
+    must(await supabase.from("orders").update(handoverPhotoUrl ? { status, handover_photo_url: handoverPhotoUrl } : { status }).eq("id", id).select("id").single());
+    notify(id);
+  },
+
+  /** Staff: photo of the bag at the hotel front desk. Returns its public address. */
+  async uploadHandoverPhoto(orderId: string, photo: Blob): Promise<string> {
+    if (!supabase) return new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(photo); });
+    const path = `${orderId}/${crypto.randomUUID()}.jpg`;
+    const { error } = await supabase.storage.from("handover-photos").upload(path, photo, { contentType: "image/jpeg" });
+    if (error) throw new Error(/bucket/i.test(error.message) ? "사진 저장소가 없어요. Supabase에서 setup.sql을 다시 실행해 주세요." : error.message);
+    return supabase.storage.from("handover-photos").getPublicUrl(path).data.publicUrl;
   },
 
   async setProductVisible(id: string, visible: boolean): Promise<void> {
@@ -263,6 +279,15 @@ export const repo = {
     must(await supabase.from("staff").update({ active }).eq("id", id).select("id").single());
   },
 };
+
+/**
+ * Asks the server to email the guest about the order's current status. Safe
+ * to call any number of times: the database hands out each email only once.
+ */
+function notify(id: string) {
+  if (typeof window === "undefined") return;
+  fetch("/api/notify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }), keepalive: true }).catch(() => {});
+}
 
 /** The tracking page needs the email again; keep it for this browser tab only. */
 export function rememberLookup(id: string, email: string) {

@@ -17,5 +17,6 @@ export function useData<T>(load: () => Promise<T>, deps: DependencyList) {
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [run, tick]);
-  return { data, error, loading, reload: () => setTick((n) => n + 1), setData };
+  const reload = useCallback(() => setTick((n) => n + 1), []);
+  return { data, error, loading, reload, setData };
 }

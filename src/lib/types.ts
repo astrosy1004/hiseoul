@@ -66,6 +66,10 @@ export interface Order {
   paymentMethod: PaymentMethod;
   status: OrderStatus;
   handoverPhotoUrl?: string;
+  /** When each status was reached (ISO). */
+  events?: Partial<Record<OrderStatus, string>>;
+  /** Guest's app language, used for emails. */
+  locale?: Locale;
 }
 
 export type DeliverySlot = "12-15" | "15-18" | "18-21" | "21-23";

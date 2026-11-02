@@ -14,8 +14,8 @@ K-팝·K-뷰티에 관심 있는 외국인 여행객을 위한 쇼핑 웹앱입�
 | 4 | AI 피부 진단 (질문 5개 → 루틴 추천, Claude 설명, 공유 이미지) | 완료 |
 | 5 | 장바구니·호텔 배달 주문·결제 (시험 결제, PG 연결부 준비) | 완료 |
 | 6 | 관리자 (상품 등록 + AI 설명·번역, TOP 10 편집, 직원 초대, 운영 설정) | 완료 |
-| 7 | 배달 추적·알림 | 예정 |
-| 8 | 테스트·배포 | 예정 |
+| 7 | 배달 추적·알림 (단계별 시각, 프런트 전달 사진, 5개 언어 알림 메일) | 완료 |
+| 8 | 테스트·배포 준비 (자동 테스트, DB 보안 테스트, GitHub 자동 점검, Vercel) | 완료 |
 
 ## 화면 주소
 
@@ -37,7 +37,12 @@ K-팝·K-뷰티에 관심 있는 외국인 여행객을 위한 쇼핑 웹앱입�
 npm install
 npm run dev      # http://localhost:3000
 npm run build    # 프로덕션 빌드 확인
+npm test         # 자동 테스트 (배달 시간, 주문 규칙, 피부 루틴, 메일)
+# DB 보안 테스트: 비어 있는 테스트용 Postgres가 필요해요 (내용이 지워져요)
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/postgres npm run test:db
 ```
+
+GitHub에 올릴 때마다 `.github/workflows/ci.yml`이 위 검사를 모두 자동으로 돌려요.
 
 ## Supabase 연결 (처음 한 번)
 
@@ -48,13 +53,18 @@ npm run build    # 프로덕션 빌드 확인
 5. (선택) AI 기능(피부 진단 설명, 상품 사진 → 이름·설명·번역)을 켜려면 `.env.local`에 `ANTHROPIC_API_KEY=`를 추가 (platform.claude.com에서 발급, 서버에서만 사용). 없으면 피부 진단은 기본 문구, 상품은 직접 입력
 6. (선택) 직원 초대 메일을 자동으로 보내려면 `.env.local`에 `SUPABASE_SECRET_KEY=`(Project Settings > API Keys의 Secret key)를 추가. **NEXT_PUBLIC_를 붙이면 절대 안 돼요.** 없으면 직원은 등록되고, 초대 메일은 Supabase > Authentication > Users > Invite user에서 보내요
 7. **Authentication > URL Configuration**의 Site URL과 Redirect URLs에 앱 주소(개발 중엔 `http://localhost:3000/**`)를 넣기. 초대·비밀번호 찾기 메일의 링크가 `/admin/login?setup=1`로 돌아와요
-8. `npm install` → `npm run dev` 후 `/admin/login`에서 로그인 → 처음에는 QR을 인증 앱(Google Authenticator 등)으로 찍고 6자리 입력
+8. (선택) 손님 알림 메일: resend.com에서 키를 받고 보내는 도메인을 인증한 뒤 `.env.local`에 `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_SITE_URL`을 넣기 (6번의 `SUPABASE_SECRET_KEY`도 필요). 없으면 메일 없이 주문 화면으로만 진행 상황을 보여 줘요
+9. `npm install` → `npm run dev` 후 `/admin/login`에서 로그인 → 처음에는 QR을 인증 앱(Google Authenticator 등)으로 찍고 6자리 입력
 
 결제: 지금은 **시험 결제**예요(실제 돈이 나가지 않음). PG가 정해지면 `src/lib/payments.ts`만 바꾸고, 관리자 > 운영 설정에서 시험 결제를 꺼요. 서비스 수수료·배달비·마감 시각·준비 시간도 같은 화면에서 바꿔요.
 
 보안 규칙 요약: 손님은 노출 상품·랭킹·호텔만 읽고, 주문은 주문번호+이메일로만 조회해요. 주문·직원 데이터는 인증 앱 확인까지 마친 직원만 볼 수 있고, 직원은 주문 상태만 바꿀 수 있어요(금액은 못 바꿈). 직원 계정과 운영 설정은 대표만, 상품·사진·순위는 대표와 운영 매니저만 바꿀 수 있어요. AI 상품 작성과 직원 초대 서버 주소도 같은 규칙으로 로그인을 확인해요.
 
 예시 데이터를 바꾸면 `node --experimental-strip-types scripts/make-seed.mjs`로 SQL을 다시 만들어요.
+
+## 배포 (Vercel)
+
+출시 전 할 일과 배포 순서는 [docs/LAUNCH.md](docs/LAUNCH.md)에 정리했어요.
 
 ## 폴더 구조
 

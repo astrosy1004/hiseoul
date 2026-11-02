@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import BottomNav from "@/components/shop/BottomNav";
 import TopBar from "@/components/shop/TopBar";
@@ -12,6 +12,8 @@ export default function Lookup() {
   const [email, setEmail] = useState("");
   const [id, setId] = useState("");
   const [error, setError] = useState(false);
+  // Links in our emails carry the order number.
+  useEffect(() => { const q = new URLSearchParams(location.search).get("id"); if (q) setId(q); }, []);
   const input = "h-11 w-full rounded-xl border border-line px-3 text-[15px] outline-none focus:border-brand";
   const [busy, setBusy] = useState(false);
   const submit = async (e: React.FormEvent) => {

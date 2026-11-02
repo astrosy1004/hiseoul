@@ -51,9 +51,12 @@ export const staff: Staff[] = [
   { id: "s4", name: "구매 직원 C", email: "staff2@hiseoul.kr", role: "staff", mfaEnabled: false, active: false },
 ];
 
+// Sample orders are always for "today" (Seoul time) so the staff screen has work to show.
+const TODAY = new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10);
+
 export const sampleOrders: Order[] = [
-  { id: "HS-1042", createdAt: "2026-11-02T11:20:00+09:00", email: "yuki@example.com", guestName: "Yuki T.", hotelId: "h1", deliveryDate: "2026-11-02", slot: "18-21", lines: [{ productId: "b1", qty: 1, unitPriceKrw: 21000 }, { productId: "b2", qty: 2, unitPriceKrw: 15000 }], itemsKrw: 51000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 55000, paymentMethod: "paypay", status: "paid" },
-  { id: "HS-1039", createdAt: "2026-11-02T10:02:00+09:00", email: "sarah@example.com", guestName: "Sarah K.", hotelId: "h4", deliveryDate: "2026-11-02", slot: "15-18", lines: [{ productId: "k1", qty: 2, unitPriceKrw: 19800 }], itemsKrw: 39600, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 43600, paymentMethod: "card", status: "purchased" },
-  { id: "HS-1035", createdAt: "2026-11-02T09:15:00+09:00", email: "emily@example.com", guestName: "Emily R.", hotelId: "h5", deliveryDate: "2026-11-02", slot: "15-18", lines: [{ productId: "b3", qty: 1, unitPriceKrw: 24000 }], itemsKrw: 24000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 28000, paymentMethod: "card", status: "delivering" },
-  { id: "HS-1031", createdAt: "2026-11-02T08:01:00+09:00", email: "mei@example.com", guestName: "Mei C.", hotelId: "h6", deliveryDate: "2026-11-02", slot: "12-15", lines: [{ productId: "b7", qty: 1, unitPriceKrw: 45000 }], itemsKrw: 45000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 49000, paymentMethod: "alipay", status: "delivered" },
+  { id: "HS-1042", createdAt: "2026-11-02T11:20:00+09:00", email: "yuki@example.com", guestName: "Yuki T.", hotelId: "h1", deliveryDate: TODAY, slot: "18-21", lines: [{ productId: "b1", qty: 1, unitPriceKrw: 21000 }, { productId: "b2", qty: 2, unitPriceKrw: 15000 }], itemsKrw: 51000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 55000, paymentMethod: "paypay", status: "paid" },
+  { id: "HS-1039", createdAt: "2026-11-02T10:02:00+09:00", email: "sarah@example.com", guestName: "Sarah K.", hotelId: "h4", deliveryDate: TODAY, slot: "15-18", lines: [{ productId: "k1", qty: 2, unitPriceKrw: 19800 }], itemsKrw: 39600, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 43600, paymentMethod: "card", status: "purchased" },
+  { id: "HS-1035", createdAt: "2026-11-02T09:15:00+09:00", email: "emily@example.com", guestName: "Emily R.", hotelId: "h5", deliveryDate: TODAY, slot: "15-18", lines: [{ productId: "b3", qty: 1, unitPriceKrw: 24000 }], itemsKrw: 24000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 28000, paymentMethod: "card", status: "delivering" },
+  { id: "HS-1031", createdAt: "2026-11-02T08:01:00+09:00", email: "mei@example.com", guestName: "Mei C.", hotelId: "h6", deliveryDate: TODAY, slot: "12-15", lines: [{ productId: "b7", qty: 1, unitPriceKrw: 45000 }], itemsKrw: 45000, serviceFeeKrw: 4000, deliveryFeeKrw: 0, totalKrw: 49000, paymentMethod: "alipay", status: "delivered" },
 ];

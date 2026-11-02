@@ -74,11 +74,11 @@ insert into public.hotels (id, name, area) values
   ('h5', '{"en":"Grand Hyatt Seoul","ko":"그랜드 하얏트 서울"}'::jsonb, 'itaewon'),
   ('h6', '{"en":"Josun Palace","ko":"조선 팰리스"}'::jsonb, 'gangnam'),
   ('h7', '{"en":"Signiel Seoul","ko":"시그니엘 서울"}'::jsonb, 'jamsil');
-insert into public.orders (id, created_at, email, guest_name, hotel_id, room, delivery_date, slot, items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status) values
-  ('HS-1042', '2026-11-02T11:20:00+09:00', 'yuki@example.com', 'Yuki T.', 'h1', null, '2026-11-02', '18-21', 51000, 4000, 0, 55000, 'paypay', 'paid'),
-  ('HS-1039', '2026-11-02T10:02:00+09:00', 'sarah@example.com', 'Sarah K.', 'h4', null, '2026-11-02', '15-18', 39600, 4000, 0, 43600, 'card', 'purchased'),
-  ('HS-1035', '2026-11-02T09:15:00+09:00', 'emily@example.com', 'Emily R.', 'h5', null, '2026-11-02', '15-18', 24000, 4000, 0, 28000, 'card', 'delivering'),
-  ('HS-1031', '2026-11-02T08:01:00+09:00', 'mei@example.com', 'Mei C.', 'h6', null, '2026-11-02', '12-15', 45000, 4000, 0, 49000, 'alipay', 'delivered');
+insert into public.orders (id, created_at, email, guest_name, hotel_id, room, delivery_date, slot, items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status, notified_status) values
+  ('HS-1042', '2026-11-02T11:20:00+09:00', 'yuki@example.com', 'Yuki T.', 'h1', null, (now() at time zone 'Asia/Seoul')::date, '18-21', 51000, 4000, 0, 55000, 'paypay', 'paid', 'paid'),
+  ('HS-1039', '2026-11-02T10:02:00+09:00', 'sarah@example.com', 'Sarah K.', 'h4', null, (now() at time zone 'Asia/Seoul')::date, '15-18', 39600, 4000, 0, 43600, 'card', 'purchased', 'purchased'),
+  ('HS-1035', '2026-11-02T09:15:00+09:00', 'emily@example.com', 'Emily R.', 'h5', null, (now() at time zone 'Asia/Seoul')::date, '15-18', 24000, 4000, 0, 28000, 'card', 'delivering', 'delivering'),
+  ('HS-1031', '2026-11-02T08:01:00+09:00', 'mei@example.com', 'Mei C.', 'h6', null, (now() at time zone 'Asia/Seoul')::date, '12-15', 45000, 4000, 0, 49000, 'alipay', 'delivered', 'delivered');
 insert into public.order_lines (order_id, product_id, qty, unit_price_krw) values
   ('HS-1042', 'b1', 1, 21000),
   ('HS-1042', 'b2', 2, 15000),

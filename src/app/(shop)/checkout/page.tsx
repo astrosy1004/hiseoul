@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import BottomCTA, { ctaClass } from "@/components/shop/BottomCTA";
@@ -68,7 +69,7 @@ export default function Checkout() {
       try { localStorage.setItem(DRAFT, JSON.stringify({ hotelId, name, room, email })); } catch { /* ignore */ }
       const order = await repo.createOrder({
         email: email.trim(), guestName: name.trim(), hotelId: hotel!.id, room: room.trim() || undefined,
-        deliveryDate: day.date, slot, paymentMethod: method, lines: cart.map((c) => ({ productId: c.productId, qty: c.qty })),
+        deliveryDate: day.date, slot, paymentMethod: method, locale, lines: cart.map((c) => ({ productId: c.productId, qty: c.qty })),
       });
       rememberLookup(order.id, order.email);
       const pay = startPayment({ ...order, method });
@@ -156,6 +157,7 @@ export default function Checkout() {
         </fieldset>
         <TotalsBox />
         <p className="text-xs leading-relaxed text-sub">{m.storeBuyNote}</p>
+        <p className="text-xs leading-relaxed text-sub">{m.privacyNote} <Link href="/privacy" className="font-semibold underline">{m.privacy}</Link></p>
         {error && <p role="alert" className="rounded-xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B42318]">{error}</p>}
       </main>
       <BottomCTA>

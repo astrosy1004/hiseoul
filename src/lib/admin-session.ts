@@ -20,6 +20,8 @@ let cached: Staff | null | undefined;
 export async function startSignIn(email: string, password: string): Promise<SignInStep> {
   const mail = email.trim().toLowerCase();
   if (!supabase) {
+    // The development login must never work on a deployed site.
+    if (process.env.NODE_ENV === "production") return { ok: false, error: "DB가 연결되지 않아 관리자 로그인을 쓸 수 없어요. 서버의 Supabase 설정(NEXT_PUBLIC_SUPABASE_URL 등)을 확인하세요." };
     const s = (await repo.listStaff()).find((x) => x.email === mail && x.active);
     return s && password ? { ok: true, factorId: s.id } : { ok: false, error: "이메일 또는 비밀번호를 확인하세요." };
   }
@@ -92,6 +94,7 @@ export async function sendPasswordLink(email: string): Promise<string | null> {
 export async function verifyCode(factorId: string, code: string): Promise<Staff | string> {
   if (!/^\d{6}$/.test(code)) return "6자리 숫자를 입력하세요.";
   if (!supabase) {
+    if (process.env.NODE_ENV === "production") return "DB가 연결되지 않았어요.";
     const s = (await repo.listStaff()).find((x) => x.id === factorId);
     if (!s) return "다시 로그인해 주세요.";
     try { sessionStorage.setItem(KEY, s.id); } catch { /* ignore */ }
@@ -114,6 +117,7 @@ export async function verifyCode(factorId: string, code: string): Promise<Staff 
 export async function getSession(): Promise<Staff | null> {
   if (cached !== undefined) return cached;
   if (!supabase) {
+    if (process.env.NODE_ENV === "production") return (cached = null);
     let id: string | null = null;
     try { id = sessionStorage.getItem(KEY); } catch { /* ignore */ }
     return (cached = (await repo.listStaff()).find((s) => s.id === id && s.active) ?? null);
