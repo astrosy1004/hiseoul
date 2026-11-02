@@ -11,6 +11,9 @@ const paths: Record<string, string> = {
   clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 7v5l3 2",
   image: "M3 5h18v14H3zM8.5 11a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM21 16l-5-5-8 8",
   share: "M12 4v11M7 9l5-5 5 5M5 14v5h14v-5",
+  search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4",
+  minus: "M6 12h12",
+  plus: "M12 6v12M6 12h12",
 };
 export default function Icon({ name, size = 22, className = "" }: { name: keyof typeof paths | string; size?: number; className?: string }) {
   return (

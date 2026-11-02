@@ -10,7 +10,7 @@ K-팝·K-뷰티에 관심 있는 외국인 여행객을 위한 쇼핑 웹앱입�
 |---|---|---|
 | 1 | 기반 정리: 핑크·Pretendard 디자인, 5개 언어, 고객·관리자 화면 뼈대, 데이터 구조 | 완료 |
 | 2 | DB·로그인 연결 (Supabase, 관리자 2단계 로그인) | 완료 |
-| 3 | 상품·랭킹 화면 | 예정 |
+| 3 | 상품·랭킹 화면 (지역별 랭킹, 피부 타입 필터, 상세, 검색, 5개 언어) | 완료 |
 | 4 | AI 피부 진단 | 예정 |
 | 5 | 장바구니·호텔 배달 주문·결제 | 예정 |
 | 6 | 관리자 (주문, 상품 + AI 설명, 직원 계정) | 예정 |
@@ -19,7 +19,7 @@ K-팝·K-뷰티에 관심 있는 외국인 여행객을 위한 쇼핑 웹앱입�
 
 ## 화면 주소
 
-- 고객: `/welcome`(첫 방문 안내), `/`, `/category/beauty`, `/product/b1`, `/cart`, `/checkout`, `/orders/lookup`, `/orders/HS-1042`, `/skin-match`
+- 고객: `/welcome`(첫 방문 안내), `/`, `/category/beauty`, `/product/b1`, `/cart`, `/checkout`, `/orders/lookup`, `/orders/HS-1042`, `/skin-match`, `/search`
 - 관리자: `/admin/login` → `/admin`, `/admin/products`, `/admin/accounts`
 - DB 미연결일 때 개발용 관리자 로그인: `owner@hiseoul.kr` + 아무 비밀번호 + 아무 6자리 숫자
 - 주문 조회 예시: `yuki@example.com` / `HS-1042`

@@ -14,7 +14,7 @@ insert into public.products (id, category, brand, name, description, store_price
   ('k3', 'kpop', '{"en":"Idol Goods","ko":"아이돌굿즈"}'::jsonb, '{"en":"Photocard Binder","ko":"포토카드 바인더"}'::jsonb, '{"en":"Protect and show off your collection.","ko":"포토카드 보관 바인더."}'::jsonb, 14000, null, 4.7, 5320, null, null, null, true, 'in_stock'),
   ('f1', 'fashion', '{"en":"Seongsu Studio","ko":"성수스튜디오"}'::jsonb, '{"en":"Oversized Logo Hoodie","ko":"오버핏 로고 후디"}'::jsonb, '{"en":"The Seongsu-dong look.","ko":"성수동 감성 후디."}'::jsonb, 59000, null, 4.6, 3120, null, null, null, true, 'in_stock'),
   ('f2', 'fashion', '{"en":"Hanok Wear","ko":"한옥웨어"}'::jsonb, '{"en":"Modern Hanbok Jacket","ko":"모던 한복 재킷"}'::jsonb, '{"en":"Traditional lines, everyday comfort.","ko":"전통 라인의 데일리 재킷."}'::jsonb, 89000, null, 4.8, 1210, null, null, null, true, 'in_stock'),
-  ('f3', 'fashion', '{"en":"Seongsu Studio","ko":"성수스튜디오"}'::jsonb, '{"en":"Bucket Hat","ko":"버킷햇"}'::jsonb, '{"en":"Lightweight and easy to pack.","ko":"가볍고 챙기기 쉬운 버킷햇."}'::jsonb, 29000, null, 4.4, 1950, null, null, null, true, 'in_stock');
+  ('f3', 'fashion', '{"en":"Seongsu Studio","ko":"성수스튜디오"}'::jsonb, '{"en":"Bucket Hat","ko":"버킷햇"}'::jsonb, '{"en":"Lightweight and easy to pack.","ko":"가볍고 챙기기 쉬운 버킷햇."}'::jsonb, 29000, null, 4.4, 1950, null, null, null, true, 'sold_out');
 insert into public.rankings (region, rank, product_id, change, is_new) values
   ('all', 1, 'b1', 3, false),
   ('all', 2, 'b2', 0, false),

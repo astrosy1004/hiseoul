@@ -18,7 +18,7 @@ export const products: Product[] = [
   p({ id: "k3", category: "kpop", brand: { en: "Idol Goods", ko: "아이돌굿즈" }, name: { en: "Photocard Binder", ko: "포토카드 바인더" }, description: { en: "Protect and show off your collection.", ko: "포토카드 보관 바인더." }, storePriceKrw: 14000, rating: 4.7, reviewCount: 5320 }),
   p({ id: "f1", category: "fashion", brand: { en: "Seongsu Studio", ko: "성수스튜디오" }, name: { en: "Oversized Logo Hoodie", ko: "오버핏 로고 후디" }, description: { en: "The Seongsu-dong look.", ko: "성수동 감성 후디." }, storePriceKrw: 59000, rating: 4.6, reviewCount: 3120 }),
   p({ id: "f2", category: "fashion", brand: { en: "Hanok Wear", ko: "한옥웨어" }, name: { en: "Modern Hanbok Jacket", ko: "모던 한복 재킷" }, description: { en: "Traditional lines, everyday comfort.", ko: "전통 라인의 데일리 재킷." }, storePriceKrw: 89000, rating: 4.8, reviewCount: 1210 }),
-  p({ id: "f3", category: "fashion", brand: { en: "Seongsu Studio", ko: "성수스튜디오" }, name: { en: "Bucket Hat", ko: "버킷햇" }, description: { en: "Lightweight and easy to pack.", ko: "가볍고 챙기기 쉬운 버킷햇." }, storePriceKrw: 29000, rating: 4.4, reviewCount: 1950 }),
+  p({ id: "f3", category: "fashion", brand: { en: "Seongsu Studio", ko: "성수스튜디오" }, name: { en: "Bucket Hat", ko: "버킷햇" }, description: { en: "Lightweight and easy to pack.", ko: "가볍고 챙기기 쉬운 버킷햇." }, storePriceKrw: 29000, rating: 4.4, reviewCount: 1950, stock: "sold_out" }),
 ];
 
 const order: Record<Region, string[]> = {

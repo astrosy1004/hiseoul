@@ -1,27 +1,24 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
 import Icon from "@/components/Icon";
 import BottomNav from "@/components/shop/BottomNav";
 import Price from "@/components/shop/Price";
 import ProductThumb from "@/components/shop/ProductThumb";
 import TopBar from "@/components/shop/TopBar";
+import { RankChange, RegionChips, StockBadge } from "@/components/shop/RankBits";
 import { SAME_DAY_CUTOFF_HOUR } from "@/lib/config";
 import { t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
 import { repo } from "@/lib/repo";
 import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
-import type { CategorySlug, Region } from "@/lib/types";
-
-const REGIONS: Region[] = ["all", "japan", "greater_china", "sea", "americas"];
+import type { CategorySlug } from "@/lib/types";
 const CATS: CategorySlug[] = ["beauty", "kpop", "fashion"];
 
 export default function Home() {
-  const { m, locale } = useStore();
-  const [region, setRegion] = useState<Region>(locale === "ja" ? "japan" : locale.startsWith("zh") ? "greater_china" : "all");
-  const { data: items = [] } = useData(() => repo.ranking(region, undefined, 5), [region]);
-  const time = locale === "ko" ? `오후 ${SAME_DAY_CUTOFF_HOUR - 12}시` : `${SAME_DAY_CUTOFF_HOUR - 12} PM`;
+  const { m, locale, region, ready } = useStore();
+  const { data: items = [] } = useData(() => (ready ? repo.ranking(region, undefined, 5) : Promise.resolve([])), [region, ready]);
+  const time = new Date(2000, 0, 1, SAME_DAY_CUTOFF_HOUR).toLocaleTimeString(locale, { hour: "numeric" });
   return (
     <>
       <TopBar />
@@ -31,7 +28,7 @@ export default function Home() {
         </div>
         <nav className="flex gap-2 px-5 pb-1 pt-4">
           {CATS.map((c, i) => (
-            <Link key={c} href={`/category/${c}`} className={`flex h-11 flex-1 items-center justify-center rounded-full text-sm font-semibold ${i === 0 ? "bg-ink text-white" : "border border-line"}`}>{m[`cat_${c}`]}</Link>
+            <Link key={c} href={`/category/${c}`} className={`flex h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-full px-1 text-[13px] font-semibold ${i === 0 ? "bg-ink text-white" : "border border-line"}`}>{m[`cat_${c}`]}</Link>
           ))}
         </nav>
         <Link href="/skin-match" className="mx-5 mt-3 flex items-center justify-between rounded-2xl bg-soft p-[18px]">
@@ -47,11 +44,7 @@ export default function Home() {
             <h2 className="text-lg font-bold">{m.trending}</h2>
             <Link href="/category/beauty" className="text-[13px] font-semibold text-brand">{m.seeAll}</Link>
           </div>
-          <div className="no-scrollbar -mx-5 mt-3 flex gap-1.5 overflow-x-auto px-5">
-            {REGIONS.map((r) => (
-              <button key={r} onClick={() => setRegion(r)} className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold ${region === r ? "bg-brand text-white" : "border border-line"}`}>{m[`region_${r}`]}</button>
-            ))}
-          </div>
+          <RegionChips className="mt-3" />
           <ol className="mt-2">
             {items.map(({ product: p, rank, change }) => (
               <li key={p.id}>
@@ -61,9 +54,9 @@ export default function Home() {
                   <div className="flex min-w-0 flex-1 flex-col">
                     <span className="text-xs text-sub">{t(p.brand, locale)}</span>
                     <span className="truncate text-sm font-semibold">{t(p.name, locale)}</span>
-                    <Price krw={p.storePriceKrw} className="text-sm font-bold" />
+                    <div className="flex items-center gap-1.5"><Price krw={p.storePriceKrw} className="text-sm font-bold" /><StockBadge product={p} /></div>
                   </div>
-                  <span className="text-xs font-semibold text-[#B4410E]">{change === "new" ? "NEW" : change > 0 ? `▲ ${change}` : change < 0 ? `▼ ${-change}` : "–"}</span>
+                  <RankChange change={change} />
                 </Link>
               </li>
             ))}

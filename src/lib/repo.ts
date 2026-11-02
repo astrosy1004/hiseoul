@@ -69,6 +69,22 @@ export const repo = {
     return rows.map((r) => ({ productId: r.product_id, region: r.region, rank: r.rank, change: r.is_new ? "new" : r.change, product: toProduct(r.products) }));
   },
 
+  /** Search visible products by brand or name in any language. */
+  async search(query: string): Promise<Product[]> {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const all = await repo.listProducts();
+    const text = (p: Product) => [...Object.values(p.brand), ...Object.values(p.name)].join(" ").toLowerCase();
+    return all.filter((p) => q.split(/\s+/).every((w) => text(p).includes(w)));
+  },
+
+  /** Other popular items in the same category, for "travelers also bought". */
+  async related(product: Product, region: Region, limit = 6): Promise<Product[]> {
+    const ranked = (await repo.ranking(region, product.category, 20)).map((r) => r.product);
+    const rest = (await repo.listProducts({ category: product.category })).filter((p) => !ranked.some((r) => r.id === p.id));
+    return [...ranked, ...rest].filter((p) => p.id !== product.id).slice(0, limit);
+  },
+
   async listHotels(): Promise<Hotel[]> {
     if (!supabase) return hotels;
     return must(await supabase.from("hotels").select("*").order("id")).map(toHotel);

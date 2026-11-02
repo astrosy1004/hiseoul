@@ -4,13 +4,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { detectLocale, messages, type Messages } from "./i18n";
 import type { Currency } from "./config";
 import { repo } from "./repo";
-import type { Locale, Product } from "./types";
+import type { Locale, Product, Region } from "./types";
 
 export interface CartLine { productId: string; qty: number }
 
 interface Store {
   locale: Locale; setLocale: (l: Locale) => void; m: Messages;
   currency: Currency; setCurrency: (c: Currency) => void;
+  /** Traveler region used for rankings, remembered per browser. */
+  region: Region; setRegion: (r: Region) => void;
   cart: CartLine[]; add: (id: string, qty?: number) => void; setQty: (id: string, qty: number) => void; clear: () => void;
   cartItems: { product: Product; qty: number }[];
   ready: boolean;
@@ -18,6 +20,7 @@ interface Store {
 
 const Ctx = createContext<Store | null>(null);
 const defaultCurrency: Record<Locale, Currency> = { en: "USD", ja: "JPY", "zh-CN": "CNY", "zh-TW": "TWD", ko: "KRW" };
+const defaultRegion = (l: Locale): Region => (l === "ja" ? "japan" : l.startsWith("zh") ? "greater_china" : "all");
 
 function read<T>(k: string): T | undefined {
   try { const v = localStorage.getItem(k); return v ? (JSON.parse(v) as T) : undefined; } catch { return undefined; }
@@ -28,6 +31,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [region, setRegion] = useState<Region>("all");
   const [ready, setReady] = useState(false);
   const [known, setKnown] = useState<Record<string, Product | null>>({});
 
@@ -36,11 +40,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     setLocaleState(l);
     setCurrency(read<Currency>("hs.currency") ?? defaultCurrency[l]);
     setCart(read<CartLine[]>("hs.cart") ?? []);
+    setRegion(read<Region>("hs.region") ?? defaultRegion(l));
     setReady(true);
   }, []);
   useEffect(() => { if (ready) write("hs.locale", locale); document.documentElement.lang = locale; }, [locale, ready]);
   useEffect(() => { if (ready) write("hs.currency", currency); }, [currency, ready]);
   useEffect(() => { if (ready) write("hs.cart", cart); }, [cart, ready]);
+  useEffect(() => { if (ready) write("hs.region", region); }, [region, ready]);
   // Load product details for cart lines we have not seen yet.
   useEffect(() => {
     const missing = cart.map((x) => x.productId).filter((id) => !(id in known));
@@ -52,12 +58,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Store>(() => ({
     locale, m: messages(locale),
     setLocale: (l) => { setLocaleState(l); setCurrency(defaultCurrency[l]); },
-    currency, setCurrency, cart, ready,
+    currency, setCurrency, cart, ready, region, setRegion,
     add: (id, qty = 1) => setCart((c) => c.some((x) => x.productId === id) ? c.map((x) => x.productId === id ? { ...x, qty: x.qty + qty } : x) : [...c, { productId: id, qty }]),
     setQty: (id, qty) => setCart((c) => qty <= 0 ? c.filter((x) => x.productId !== id) : c.map((x) => x.productId === id ? { ...x, qty } : x)),
     clear: () => setCart([]),
     cartItems: cart.flatMap((x) => { const product = known[x.productId]; return product ? [{ product, qty: x.qty }] : []; }),
-  }), [locale, currency, cart, ready, known]);
+  }), [locale, currency, cart, ready, known, region]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
