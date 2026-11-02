@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>하이서울 개발 계획서</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --pink:#C2255C; --pink-d:#9C1B49; --pink-l:#FCE8EF; --pink-ink:#8A1C45;
+  --ink:#1A1A1A; --sub:#5B6068; --mute:#6B7079; --line:#E3E5E8; --soft:#F5F6F7; --bg:#FFFFFF;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--soft);color:var(--ink);
+  font-family:"Pretendard","Pretendard Variable",-apple-system,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  -webkit-font-smoothing:antialiased;word-break:keep-all}
+.deck{display:flex;height:100vh;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none}
+.deck::-webkit-scrollbar{display:none}
+.slide{flex:0 0 100vw;height:100vh;scroll-snap-align:start;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:56px 24px 88px}
+.card{width:100%;max-width:1160px;background:var(--bg);border-radius:24px;padding:48px 56px;box-shadow:0 1px 2px rgba(0,0,0,.04);border:1px solid var(--line)}
+.kicker{font-size:14px;font-weight:700;color:var(--pink);letter-spacing:.02em;margin:0 0 10px}
+h1{font-size:44px;line-height:1.25;margin:0 0 16px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:32px;line-height:1.3;margin:0 0 8px;font-weight:800;letter-spacing:-.02em}
+.lead{font-size:18px;line-height:1.6;color:var(--sub);margin:0 0 28px;max-width:760px}
+p{line-height:1.6}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.box{border:1px solid var(--line);border-radius:16px;padding:20px 22px;background:#fff}
+.box h3{margin:0 0 6px;font-size:18px;font-weight:700}
+.box p{margin:0;font-size:15px;color:var(--sub)}
+.box.pink{background:var(--pink-l);border-color:transparent}
+.box.pink h3{color:var(--pink-ink)}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:var(--soft);color:var(--sub)}
+.tag.on{background:var(--pink);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:13px;color:var(--sub);font-weight:700}
+.tablewrap{overflow-x:auto}
+.cover{background:var(--pink);color:#fff;border:0}
+.cover .kicker{color:#FFD6E4}
+.cover .lead{color:#FFE9F1}
+.brand{font-size:28px;font-weight:800;margin-bottom:56px}
+.brand span{color:#FFD6E4}
+.meta{display:flex;gap:24px;flex-wrap:wrap;font-size:15px;color:#FFE9F1;margin-top:40px}
+.big{font-size:20px;font-weight:700;line-height:1.5}
+/* journey */
+.journey{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;counter-reset:s}
+.step{position:relative;border:1px solid var(--line);border-radius:14px;padding:16px 14px;background:#fff}
+.step b{display:block;font-size:13px;color:var(--pink);margin-bottom:4px}
+.step strong{display:block;font-size:16px;margin-bottom:4px}
+.step span{font-size:13px;color:var(--sub);line-height:1.5}
+/* phones */
+.phones{display:flex;gap:28px;justify-content:center;flex-wrap:wrap}
+.pwrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.pwrap figcaption{font-size:14px;font-weight:700}
+.pwrap small{font-size:12px;color:var(--sub);font-weight:500;display:block;text-align:center}
+.phone{width:236px;height:480px;border-radius:32px;border:8px solid #1A1A1A;background:#fff;overflow:hidden;display:flex;flex-direction:column;font-size:11px;position:relative}
+.ph-top{display:flex;justify-content:space-between;align-items:center;padding:12px 12px 8px}
+.logo{font-weight:800;font-size:14px}.logo span{color:var(--pink)}
+.pill{border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:9px;font-weight:600}
+.banner{margin:0 12px;padding:7px 9px;border-radius:7px;background:var(--pink-l);color:var(--pink-ink);font-size:9.5px}
+.chips{display:flex;gap:5px;padding:9px 12px 4px}
+.chip{flex:1;text-align:center;padding:6px 0;border-radius:999px;border:1px solid var(--line);font-size:9.5px;font-weight:600}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.skin{margin:8px 12px 0;padding:10px;border-radius:9px;background:var(--soft)}
+.skin b{display:block;color:var(--pink);font-size:8.5px}
+.skin strong{font-size:11.5px}
+.rowp{display:flex;gap:8px;align-items:center;padding:7px 12px;border-bottom:1px solid #F0F1F3}
+.rk{width:12px;font-weight:800;color:var(--pink)}
+.th{width:34px;height:34px;border-radius:6px;background:#F0F1F3;flex:none}
+.rowp div{display:flex;flex-direction:column;flex:1;min-width:0}
+.rowp em{font-style:normal;color:var(--sub);font-size:9px}
+.rowp strong{font-size:10.5px}
+.tabbar{margin-top:auto;display:flex;justify-content:space-around;border-top:1px solid var(--line);padding:7px 0 10px;font-size:9px;font-weight:600;color:var(--sub)}
+.tabbar .on{color:var(--pink)}
+.btn{margin:auto 12px 14px;height:36px;border-radius:9px;background:var(--pink);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11.5px}
+.photo{height:230px;background:#2A2A2E;color:#D9D9DE;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;padding:0 20px;position:relative}
+.photo .lg{position:absolute;top:12px;left:12px;color:#fff;font-weight:800;font-size:14px}
+.photo .lg span{color:#F7A8C4}
+.intro{padding:16px 14px 0}
+.intro b{color:var(--pink);font-size:9.5px}
+.intro h4{margin:4px 0 6px;font-size:16px;line-height:1.35}
+.intro p{margin:0;font-size:10px;color:var(--sub);line-height:1.55}
+.dots{display:flex;gap:4px;justify-content:center;margin:auto 0 10px}
+.dots i{width:6px;height:6px;border-radius:3px;background:var(--line)}
+.dots i.on{width:16px;background:var(--pink)}
+.hero{margin:6px 12px 0;padding:12px;border-radius:10px;background:var(--pink);color:#fff}
+.hero b{font-size:8.5px;opacity:.9}.hero strong{display:block;font-size:15px;margin-top:2px}
+.sec{margin:12px 12px 4px;font-weight:700;font-size:11.5px}
+.field{margin:0 12px 7px}
+.field label{display:block;font-weight:600;font-size:9px;margin-bottom:3px}
+.field div{height:26px;border:1px solid var(--line);border-radius:6px;padding:0 8px;display:flex;align-items:center;font-size:10px}
+.slots{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 12px}
+.slots span{height:26px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:9.5px}
+.slots span.on{border:2px solid var(--pink);background:var(--pink-l)}
+.track{padding:10px 14px 0}
+.tstep{display:flex;gap:9px;padding-bottom:12px;font-size:10.5px}
+.tstep i{width:10px;height:10px;border-radius:5px;background:var(--pink);flex:none;margin-top:2px}
+.tstep i.cur{background:#fff;border:2.5px solid var(--pink)}
+.tstep i.off{background:#fff;border:2px solid #C9CDD2}
+.tstep.off{color:var(--mute)}
+.tstep em{display:block;font-style:normal;color:var(--sub);font-size:9px}
+/* admin mock */
+.desk{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--soft);display:flex;font-size:12px;min-width:640px}
+.desk aside{width:150px;background:#fff;border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:2px}
+.desk aside .logo{font-size:15px;margin:0 6px 12px}
+.desk aside > span{padding:7px 8px;border-radius:6px;font-weight:600}
+.desk aside > span.on{background:var(--pink-l);color:var(--pink)}
+.desk main{flex:1;padding:16px 18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.kpis div{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 10px}
+.kpis em{font-style:normal;color:var(--sub);font-size:11px;display:block}
+.kpis strong{font-size:17px}
+.dt{background:#fff;border:1px solid var(--line);border-radius:10px}
+.dt div{display:grid;grid-template-columns:70px 1.6fr 80px 90px 80px;gap:6px;padding:8px 12px;border-bottom:1px solid #F0F1F3;align-items:center}
+.dt div:first-child{font-weight:700;color:var(--sub);font-size:11px}
+.badge{justify-self:start;padding:2px 8px;border-radius:10px;font-size:10.5px;font-weight:700}
+.b1{background:#FFF4E5;color:#8A4B08}.b2{background:#EAF1FF;color:#1D4ED8}.b3{background:var(--pink-l);color:var(--pink-ink)}.b4{background:#E9F6EC;color:#1F7A3A}
+/* architecture */
+.arch{display:grid;grid-template-columns:1fr 60px 1.2fr 60px 1fr;align-items:center;gap:0}
+.col{display:flex;flex-direction:column;gap:10px}
+.node{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+.node strong{display:block;font-size:15px}
+.node span{font-size:13px;color:var(--sub)}
+.node.core{background:var(--pink);color:#fff;border-color:var(--pink);padding:22px 18px}
+.node.core span{color:#FFE9F1}
+.arrow{height:2px;background:#C9CDD2;position:relative;margin:0 6px}
+.arrow:after{content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid #C9CDD2;border-top:5px solid transparent;border-bottom:5px solid transparent}
+.arrow.both:before{content:"";position:absolute;left:-1px;top:-4px;border-right:8px solid #C9CDD2;border-top:5px solid transparent;border-bottom:5px solid transparent}
+/* gantt */
+.gantt{display:grid;grid-template-columns:200px repeat(12,minmax(0,1fr));gap:6px 4px;align-items:center;min-width:760px;font-size:13px}
+.gantt .wk{font-size:11px;color:var(--sub);text-align:center;font-weight:600}
+.gantt .lbl{font-weight:600}
+.gantt .lbl small{display:block;color:var(--sub);font-weight:500;font-size:11.5px}
+.bar{height:26px;border-radius:7px;background:var(--pink-l);border:1px solid #F4C1D3}
+.bar.dark{background:var(--pink);border-color:var(--pink)}
+.gate{grid-column:2 / -1;display:flex;justify-content:space-between;font-size:12px;color:var(--pink-ink);font-weight:700;padding-top:6px;border-top:1px dashed #F4C1D3}
+ul.clean{margin:0;padding-left:18px;line-height:1.8;font-size:15px}
+ul.clean li::marker{color:var(--pink)}
+/* nav */
+.nav{position:fixed;left:0;right:0;bottom:18px;display:flex;justify-content:center;align-items:center;gap:12px;pointer-events:none}
+.nav button{pointer-events:auto;width:44px;height:44px;border-radius:22px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.nav button:disabled{opacity:.35;cursor:default}
+.nav .count{pointer-events:auto;min-width:72px;text-align:center;font-size:13px;font-weight:700;background:#fff;border:1px solid var(--line);border-radius:22px;padding:12px 14px}
+.prog{position:fixed;left:0;top:0;height:3px;background:var(--pink);transition:width .25s}
+@media (max-width:860px){
+  .slide{padding:20px 16px 84px;align-items:flex-start}
+  .card{padding:28px 20px;border-radius:18px}
+  h1{font-size:30px}h2{font-size:24px}.lead{font-size:16px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .journey{grid-template-columns:1fr 1fr}
+  .arch{grid-template-columns:1fr;gap:10px}
+  .arrow{height:24px;width:2px;margin:0 auto}
+  .arrow:after{right:-4px;top:auto;bottom:-1px;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid #C9CDD2;border-bottom:0}
+  .arrow.both:before{left:-4px;top:-1px;border-right:5px solid transparent;border-left:5px solid transparent;border-bottom:8px solid #C9CDD2;border-top:0}
+}
+@media print{
+  .deck{display:block;height:auto;overflow:visible}
+  .slide{height:auto;page-break-after:always}
+  .nav,.prog{display:none}
+}
+</style>
+</head>
+<body>
+<div class="prog" id="prog"></div>
+<div class="deck" id="deck">
+
+<!-- 1 cover -->
+<section class="slide"><div class="card cover">
+  <div class="brand">Hi<span>Seoul</span></div>
+  <p class="kicker">개발 계획서 · v1</p>
+  <h1>돌아다니지 않아도,<br>K-베스트를 호텔에서</h1>
+  <p class="lead">한국을 찾은 20대 K-팝·K-뷰티 팬이 분야별 인기 상품을 사면 묵고 있는 호텔 프런트로 당일 배달하는 웹앱입니다.</p>
+  <div class="meta"><span>작성일 2026년 11월 2일</span><span>대상 범위 MVP (1차 출시)</span><span>← → 키 또는 스와이프로 넘기기</span></div>
+</div></section>
+
+<!-- 2 problem -->
+<section class="slide"><div class="card">
+  <p class="kicker">01 · 누구를 위한 서비스인가</p>
+  <h2>바쁜 여행 일정 속 K-팬의 쇼핑 고민을 해결합니다</h2>
+  <p class="lead">일본, 중화권, 동남아, 미주의 20대 여성 팬을 처음부터 동시에 공략하고, 직접 운영합니다.</p>
+  <div class="grid g2">
+    <div class="box"><h3>고객의 불편</h3><p>일정이 빡빡해서 올리브영, 팬샵, 팝업스토어를 다 돌아다닐 시간이 없다. 한정판은 줄을 서도 품절이다.</p></div>
+    <div class="box pink"><h3>하이서울의 답</h3><p>분야별 베스트를 앱에서 고르면, 오늘 밤 호텔 프런트에서 예약자 이름으로 받는다. 가격은 국내 매장과 같다.</p></div>
+  </div>
+  <div class="grid g4" style="margin-top:16px">
+    <div class="box"><span class="tag">고객</span><p style="margin-top:8px">20대 여성 K-팬, 단기 여행객</p></div>
+    <div class="box"><span class="tag">지역</span><p style="margin-top:8px">일본 · 중화권 · 동남아 · 미주</p></div>
+    <div class="box"><span class="tag">언어</span><p style="margin-top:8px">영어 · 일본어 · 중국어(간체·번체) · 한국어</p></div>
+    <div class="box"><span class="tag">수익</span><p style="margin-top:8px">매장가 그대로 + 주문당 서비스 수수료</p></div>
+  </div>
+</div></section>
+
+<!-- 3 MVP -->
+<section class="slide"><div class="card">
+  <p class="kicker">02 · MVP 범위</p>
+  <h2>1차 출시는 4개 핵심 기능과 관리자 도구로 시작합니다</h2>
+  <p class="lead">판매 분야는 별도 신고가 필요 없는 K-뷰티, K-팝 굿즈, K-패션 3개로 좁혔습니다.</p>
+  <div class="grid g2">
+    <div class="box pink">
+      <h3>1차 (MVP)</h3>
+      <ul class="clean">
+        <li>분야별 베스트 구매 · 비회원 주문(이메일만)</li>
+        <li>당일 호텔 프런트 배달 · 배달 추적</li>
+        <li>AI 피부 진단(질문형) · 결과 공유 이미지</li>
+        <li>트렌드 랭킹 · 국적별 랭킹</li>
+        <li>관리자: 주문 처리, 상품·TOP 10 등록, AI 설명 자동 작성, 로그인·직원 권한</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h3>2차 이후</h3>
+      <ul class="clean">
+        <li>인스타그램 기반 SNS 핫 아이템 추천</li>
+        <li>한정판 대리 구매 · 발매 알림과 사전 예약</li>
+        <li>택스리펀 자동 적용</li>
+        <li>캐리어 무게 계산 · 본국 배송</li>
+        <li>K-간식 · K-웰니스(식품 신고 후)</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+<!-- 4 journey -->
+<section class="slide"><div class="card">
+  <p class="kicker">03 · 고객 여정</p>
+  <h2>여행 전에 담아 두고, 여행 중에 받습니다</h2>
+  <p class="lead">여행 전 예약 주문과 여행 중 당일 주문을 모두 지원합니다. 가입 없이 이메일만으로 주문합니다.</p>
+  <div class="journey">
+    <div class="step"><b>1</b><strong>알게 됨</strong><span>인스타그램, 틱톡, 샤오홍슈에서 발견</span></div>
+    <div class="step"><b>2</b><strong>둘러봄</strong><span>트렌드 랭킹, AI 피부 진단으로 루틴 추천</span></div>
+    <div class="step"><b>3</b><strong>담음</strong><span>호텔과 배달 날짜 입력. 여행 전이면 도착일로 예약</span></div>
+    <div class="step"><b>4</b><strong>결제</strong><span>해외카드, 알리페이, 위챗페이, 라인페이, 그랩페이</span></div>
+    <div class="step"><b>5</b><strong>받음</strong><span>오후 3시 전 주문하면 오늘 밤 프런트에서 수령</span></div>
+    <div class="step"><b>6</b><strong>다시 옴</strong><span>후기, 결과 이미지 공유, 친구 추천</span></div>
+  </div>
+</div></section>
+
+<!-- 5 mock 1 -->
+<section class="slide"><div class="card">
+  <p class="kicker">04 · 화면 설계 · 고객 1</p>
+  <h2>첫 화면에서 기능을 이해하고, 랭킹으로 고릅니다</h2>
+  <p class="lead">흰 배경에 로즈 핑크 하나만 강조색으로 쓰는 깔끔한 쇼핑몰 스타일입니다.</p>
+  <div class="phones">
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="photo"><div class="lg">Hi<span>Seoul</span></div><strong>서울 실사 사진</strong><span>명동 거리 야경</span></div>
+        <div class="intro"><b>서울의 K-베스트</b><h4>K-뷰티, K-팝 인기템을<br>한 곳에서</h4><p>지금 서울 여행객들이 가장 많이 사는 상품을 분야별 랭킹으로 보여 드려요.</p></div>
+        <div class="dots"><i class="on"></i><i></i><i></i></div>
+        <div class="btn" style="margin-top:0">다음</div>
+      </div>
+      <figcaption>시작 화면<small>3장 안내 · 언어 선택</small></figcaption>
+    </figure>
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="ph-top"><div class="logo">Hi<span>Seoul</span></div><div class="pill">한국어 · KRW</div></div>
+        <div class="banner"><b>오후 3시</b>까지 주문하면 오늘 밤 호텔로 배달</div>
+        <div class="chips"><div class="chip on">K-뷰티</div><div class="chip">K-팝</div><div class="chip">K-패션</div></div>
+        <div class="skin"><b>AI 피부 진단</b><strong>나에게 맞는 K-스킨케어 찾기</strong></div>
+        <div class="sec">여행객 인기 랭킹 · 일본</div>
+        <div class="rowp"><span class="rk">1</span><span class="th"></span><div><em>듀랩</em><strong>스네일 뮤신 96 에센스</strong><em>21,000원</em></div></div>
+        <div class="rowp"><span class="rk">2</span><span class="th"></span><div><em>선데일리</em><strong>워터리 선크림 SPF50+</strong><em>15,000원</em></div></div>
+        <div class="rowp"><span class="rk">3</span><span class="th"></span><div><em>시카가든</em><strong>센텔라 진정 크림</strong><em>24,000원</em></div></div>
+        <div class="tabbar"><span class="on">홈</span><span>랭킹</span><span>피부 진단</span><span>주문</span></div>
+      </div>
+      <figcaption>홈<small>국적별 랭킹 · 배달 마감 안내</small></figcaption>
+    </figure>
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="ph-top"><span>←</span><div class="pill">장바구니</div></div>
+        <div style="margin:0 12px;height:170px;border-radius:10px;background:#F0F1F3;display:flex;align-items:center;justify-content:center;color:#6B7079">상품 사진</div>
+        <div style="padding:10px 12px 0;display:flex;flex-direction:column;gap:3px">
+          <em style="font-style:normal;color:#5B6068;font-size:9.5px">듀랩 · K-뷰티 1위</em>
+          <strong style="font-size:13.5px">스네일 뮤신 96 에센스 100ml</strong>
+          <em style="font-style:normal;color:#5B6068;font-size:9.5px">★ 4.8 · 리뷰 12,840개</em>
+          <strong style="font-size:16px">21,000원 <span style="font-size:9.5px;color:#5B6068;font-weight:500">약 $15.20</span></strong>
+          <span class="tag" style="background:var(--pink-l);color:var(--pink-ink);align-self:flex-start;font-size:9px">국내 매장과 같은 가격</span>
+        </div>
+        <div class="btn">장바구니 담기</div>
+      </div>
+      <figcaption>상품 상세<small>원화와 현지 통화 함께 표시</small></figcaption>
+    </figure>
+  </div>
+</div></section>
+
+<!-- 6 mock 2 -->
+<section class="slide"><div class="card">
+  <p class="kicker">05 · 화면 설계 · 고객 2</p>
+  <h2>피부 진단으로 담고, 호텔로 받고, 실시간으로 확인합니다</h2>
+  <p class="lead">결제 직후부터 프런트 전달 사진까지 한 화면에서 추적합니다.</p>
+  <div class="phones">
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="ph-top"><span>←</span><div class="pill">공유</div></div>
+        <div class="hero"><b>나의 피부 타입</b><strong>건성 · 수분 부족</strong></div>
+        <div class="sec">나만의 K-스킨케어 루틴</div>
+        <div class="rowp"><span class="rk" style="width:38px;font-size:8.5px">1 토너</span><span class="th"></span><div><strong>쌀뜨물 토너</strong><em>18,000원</em></div></div>
+        <div class="rowp"><span class="rk" style="width:38px;font-size:8.5px">2 에센스</span><span class="th"></span><div><strong>스네일 에센스</strong><em>21,000원</em></div></div>
+        <div class="rowp"><span class="rk" style="width:38px;font-size:8.5px">3 크림</span><span class="th"></span><div><strong>센텔라 크림</strong><em>24,000원</em></div></div>
+        <div class="rowp"><span class="rk" style="width:38px;font-size:8.5px">4 선크림</span><span class="th"></span><div><strong>워터리 선크림</strong><em>15,000원</em></div></div>
+        <div class="btn">4개 모두 담기</div>
+      </div>
+      <figcaption>피부 진단 결과<small>루틴 한 번에 담기 · SNS 공유</small></figcaption>
+    </figure>
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="ph-top"><strong style="font-size:12px">호텔 배달 정보</strong></div>
+        <div class="field"><label>호텔</label><div>롯데호텔 서울 · 명동</div></div>
+        <div class="field"><label>예약자 이름</label><div>Jane Doe</div></div>
+        <div class="field"><label>주문 알림 이메일</label><div>jane@example.com</div></div>
+        <div class="field" style="margin-bottom:4px"><label>배달 시간 · 오늘</label></div>
+        <div class="slots"><span>15–18시</span><span class="on">18–21시</span><span>21–23시</span><span>내일</span></div>
+        <div class="field" style="margin-top:8px"><label>결제 수단</label></div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 12px"><span class="pill" style="border:2px solid var(--pink)">해외카드</span><span class="pill">알리페이</span><span class="pill">위챗페이</span><span class="pill">라인페이</span><span class="pill">그랩페이</span></div>
+        <div class="btn">결제하기</div>
+      </div>
+      <figcaption>호텔 배달 주문<small>비회원 · 지역 결제수단</small></figcaption>
+    </figure>
+    <figure class="pwrap" style="margin:0">
+      <div class="phone">
+        <div class="ph-top"><strong style="font-size:12px">주문 HS-1042</strong></div>
+        <div style="margin:0 12px;padding:10px;border-radius:10px;background:var(--pink-l)"><b style="color:var(--pink-ink);font-size:9.5px">오늘 밤 도착 예정</b><strong style="display:block;font-size:16px">18:00 – 21:00</strong><em style="font-style:normal;font-size:9px;color:#6B3A4C">롯데호텔 서울 프런트 · Jane Doe</em></div>
+        <div class="track">
+          <div class="tstep"><i></i><div>주문 확인<em>영수증 이메일 발송</em></div></div>
+          <div class="tstep"><i></i><div>상품 구매 완료<em>국내 매장에서 픽업</em></div></div>
+          <div class="tstep"><i class="cur"></i><div><strong>배달 중</strong><em>기사님이 호텔로 이동 중</em></div></div>
+          <div class="tstep off"><i class="off"></i><div>프런트 도착<em>예약자 이름으로 수령</em></div></div>
+        </div>
+        <div style="margin:0 12px;height:64px;border-radius:8px;background:#F0F1F3;display:flex;align-items:center;justify-content:center;color:#6B7079;font-size:9.5px">프런트 전달 사진</div>
+        <div class="btn">쇼핑 계속하기</div>
+      </div>
+      <figcaption>배달 추적<small>4단계 상태 · 전달 사진</small></figcaption>
+    </figure>
+  </div>
+</div></section>
+
+<!-- 7 admin -->
+<section class="slide"><div class="card">
+  <p class="kicker">06 · 화면 설계 · 관리자 (PC)</p>
+  <h2>같은 지역 주문을 묶어 사고, 버튼 하나로 상태를 넘깁니다</h2>
+  <p class="lead">관리자 화면은 로그인(2단계 인증), 오늘 주문 처리, 상품·TOP 10 등록, 직원 계정 관리 4개입니다.</p>
+  <div class="tablewrap">
+  <div class="desk">
+    <aside><div class="logo">Hi<span>Seoul</span></div><span class="on">오늘 주문</span><span>상품·랭킹</span><span>배달 대행</span><span>정산</span><span>직원 계정</span></aside>
+    <main>
+      <strong style="font-size:16px">오늘 주문 · 11월 2일</strong>
+      <div class="kpis"><div><em>결제 완료</em><strong>2</strong></div><div><em>구매 완료</em><strong>2</strong></div><div><em>배달 중</em><strong>1</strong></div><div><em>프런트 전달</em><strong>1</strong></div></div>
+      <div class="dt">
+        <div><span>주문번호</span><span>호텔 · 지역</span><span>배달 시간</span><span>상태</span><span>다음 처리</span></div>
+        <div><span>HS-1042</span><span>롯데호텔 서울 · 명동</span><span>18–21시</span><span class="badge b1">결제 완료</span><span style="color:var(--pink);font-weight:700">구매 완료 처리</span></div>
+        <div><span>HS-1039</span><span>L7 홍대 · 홍대</span><span>15–18시</span><span class="badge b2">구매 완료</span><span style="color:var(--pink);font-weight:700">배달 출발</span></div>
+        <div><span>HS-1035</span><span>그랜드 하얏트 · 이태원</span><span>15–18시</span><span class="badge b3">배달 중</span><span style="color:var(--pink);font-weight:700">전달 완료</span></div>
+        <div><span>HS-1031</span><span>조선 팰리스 · 강남</span><span>12–15시</span><span class="badge b4">프런트 전달</span><span></span></div>
+      </div>
+    </main>
+  </div>
+  </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="box"><h3>상품·TOP 10 등록</h3><p>패키지 사진을 올리면 AI가 성분을 읽고 4개 언어 설명 초안을 작성. 명동점 재고 확인 후 노출.</p></div>
+    <div class="box"><h3>로그인</h3><p>초대받은 직원만 이메일·비밀번호와 휴대폰 인증 코드로 접속. 5회 실패 시 잠금.</p></div>
+    <div class="box"><h3>직원 권한</h3><p>대표, 운영 매니저, 구매·배달 직원 3단계. 정산과 계정 관리는 대표만.</p></div>
+  </div>
+</div></section>
+
+<!-- 8 ops -->
+<section class="slide"><div class="card">
+  <p class="kicker">07 · 운영 방식</p>
+  <h2>재고 없이 시작하고, 잘 팔리는 상품부터 직접 재고로 바꿉니다</h2>
+  <p class="lead">올리브영 사이트 자동 수집은 하지 않습니다. TOP 10은 관리자가 등록하고 재고는 구매 단계에서 확인합니다.</p>
+  <div class="tablewrap"><table>
+    <tr><th>영역</th><th>방식</th><th>남은 할 일</th></tr>
+    <tr><td><b>상품 조달</b></td><td>주문 후 매장 구매 → 인기 상품은 브랜드·도매 계약으로 재고 보유</td><td>K-팝 공식 굿즈 재판매 정책 확인</td></tr>
+    <tr><td><b>배달</b></td><td>MVP는 퀵서비스 기업 계약, 주문이 늘면 바로고·부릉 등 배달 대행 API 연동</td><td>업체 2~3곳 견적, 명동 호텔 5~10곳 프런트 수령 확인</td></tr>
+    <tr><td><b>결제</b></td><td>글로벌 PG 한 곳으로 해외카드, 알리페이, 위챗페이, 페이페이, 라인페이, 그랩페이</td><td>PG사 비교·선정</td></tr>
+    <tr><td><b>수익</b></td><td>상품은 국내 매장가 그대로, 주문당 서비스 수수료</td><td>수수료·배달비 금액 확정 (후보 3,000~5,000원)</td></tr>
+    <tr><td><b>인허가</b></td><td>사업자등록, 통신판매업 신고</td><td>식품·건강기능식품은 신고 후 2차에 추가</td></tr>
+  </table></div>
+</div></section>
+
+<!-- 9 architecture -->
+<section class="slide"><div class="card">
+  <p class="kicker">08 · 시스템 구조</p>
+  <h2>하나의 웹앱 서버가 고객·관리자 화면과 외부 서비스를 잇습니다</h2>
+  <p class="lead">고객용 웹앱과 관리자 화면을 같은 코드로 만들고, 결제·배달·AI는 외부 서비스에 맡깁니다.</p>
+  <div class="arch">
+    <div class="col">
+      <div class="node"><strong>고객 웹앱</strong><span>휴대폰 브라우저 · 4개 언어</span></div>
+      <div class="node"><strong>관리자 화면</strong><span>PC · 직원 로그인</span></div>
+    </div>
+    <div class="arrow both"></div>
+    <div class="col">
+      <div class="node core"><strong>하이서울 서버</strong><span>주문 · 상품 · 랭킹 · 피부 진단 · 권한</span></div>
+      <div class="node"><strong>데이터베이스</strong><span>상품, 주문, 호텔, 직원 계정, 로그인 기록</span></div>
+    </div>
+    <div class="arrow both"></div>
+    <div class="col">
+      <div class="node"><strong>결제대행사(PG)</strong><span>카드·지역 간편결제</span></div>
+      <div class="node"><strong>배달 대행</strong><span>기사 배정 · 위치 · 전달 사진</span></div>
+      <div class="node"><strong>AI (Claude)</strong><span>상품 설명 · 번역 · 피부 진단 문구</span></div>
+      <div class="node"><strong>이메일 발송</strong><span>주문 확인 · 배달 알림</span></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- 10 stack -->
+<section class="slide"><div class="card">
+  <p class="kicker">09 · 기술 스택 (추천안)</p>
+  <h2>적은 인원으로 빠르게 만들고 운영하기 쉬운 조합입니다</h2>
+  <p class="lead">대부분 관리형 서비스라 서버 운영 인력 없이 시작할 수 있습니다. 확정 전 비용 견적을 받습니다.</p>
+  <div class="tablewrap"><table>
+    <tr><th>구분</th><th>추천</th><th>이유</th></tr>
+    <tr><td><b>웹앱</b></td><td>Next.js · React · TypeScript</td><td>고객·관리자 화면을 한 코드로, 검색 노출과 다국어에 유리</td></tr>
+    <tr><td><b>디자인</b></td><td>Tailwind CSS · Pretendard</td><td>시안의 색·간격을 그대로 옮기기 쉬움</td></tr>
+    <tr><td><b>DB·로그인</b></td><td>Supabase (PostgreSQL, 인증, 2단계 인증, 파일 저장)</td><td>직원 권한·로그인 기록을 기본 기능으로 처리</td></tr>
+    <tr><td><b>호스팅</b></td><td>Vercel</td><td>배포 자동화, 해외 접속 속도</td></tr>
+    <tr><td><b>결제</b></td><td>글로벌 PG (Eximbay, 토스페이먼츠 해외결제 등 비교)</td><td>지역 간편결제를 한 계약으로</td></tr>
+    <tr><td><b>AI</b></td><td>Claude API</td><td>사진 속 성분표 읽기, 4개 언어 설명·번역</td></tr>
+    <tr><td><b>배달</b></td><td>퀵 기업 계약 → 배달 대행 API</td><td>MVP는 수동 접수, 이후 자동 연동</td></tr>
+  </table></div>
+</div></section>
+
+<!-- 11 schedule -->
+<section class="slide"><div class="card">
+  <p class="kicker">10 · 개발 일정 (12주)</p>
+  <h2>12주 뒤 명동 호텔 시범 운영으로 출시합니다</h2>
+  <p class="lead">개발자 2명(프론트·백엔드)과 디자이너 1명 기준 추정입니다. 인원에 따라 조정합니다.</p>
+  <div class="tablewrap">
+  <div class="gantt">
+    <span></span><span class="wk">1</span><span class="wk">2</span><span class="wk">3</span><span class="wk">4</span><span class="wk">5</span><span class="wk">6</span><span class="wk">7</span><span class="wk">8</span><span class="wk">9</span><span class="wk">10</span><span class="wk">11</span><span class="wk">12</span>
+    <span class="lbl" style="grid-row:2">준비·디자인 확정<small>시안 확정, DB 설계</small></span><div class="bar" style="grid-row:2;grid-column:2 / span 2"></div>
+    <span class="lbl" style="grid-row:3">상품·랭킹·다국어<small>홈, 분야별 베스트, 상세</small></span><div class="bar" style="grid-row:3;grid-column:4 / span 3"></div>
+    <span class="lbl" style="grid-row:4">AI 피부 진단<small>질문, 결과, 공유 이미지</small></span><div class="bar" style="grid-row:4;grid-column:6 / span 2"></div>
+    <span class="lbl" style="grid-row:5">주문·결제<small>장바구니, 호텔 배달, PG</small></span><div class="bar" style="grid-row:5;grid-column:7 / span 3"></div>
+    <span class="lbl" style="grid-row:6">관리자<small>로그인, 주문, 상품, AI 설명</small></span><div class="bar" style="grid-row:6;grid-column:8 / span 3"></div>
+    <span class="lbl" style="grid-row:7">배달 추적·알림<small>상태, 이메일, 전달 사진</small></span><div class="bar" style="grid-row:7;grid-column:10 / span 2"></div>
+    <span class="lbl" style="grid-row:8">테스트·시범 운영<small>명동 호텔 5~10곳</small></span><div class="bar dark" style="grid-row:8;grid-column:11 / span 2"></div>
+    <div class="gate" style="grid-row:9"><span>2주: 시안·PG 선정</span><span>7주: 주문 흐름 완성</span><span>10주: 관리자 완성</span><span>12주: 시범 출시</span></div>
+  </div>
+  </div>
+</div></section>
+
+<!-- 12 risks -->
+<section class="slide"><div class="card">
+  <p class="kicker">11 · 리스크와 다음 할 일</p>
+  <h2>출시 전에 사업 쪽 확인 4가지가 개발만큼 중요합니다</h2>
+  <p class="lead">아래 항목은 개발과 동시에 진행해야 일정에 맞출 수 있습니다.</p>
+  <div class="grid g2">
+    <div class="box">
+      <h3>리스크</h3>
+      <ul class="clean">
+        <li>호텔마다 투숙객 물품 프런트 보관 정책이 다름</li>
+        <li>매장 품절 시 당일 배달 실패 → 대체 상품·환불 규칙 필요</li>
+        <li>K-팝 공식 굿즈 재판매 정책·상표 문제</li>
+        <li>상품 사진·설명 저작권 (직접 촬영으로 해결)</li>
+      </ul>
+    </div>
+    <div class="box pink">
+      <h3>다음 할 일</h3>
+      <ul class="clean">
+        <li>사업자등록 · 통신판매업 신고</li>
+        <li>PG사 2~3곳, 배달 업체 2~3곳 견적</li>
+        <li>명동 호텔 5~10곳 프런트 수령 협의</li>
+        <li>서비스 수수료·배달비 금액 확정</li>
+        <li>시작 화면용 서울 사진 3장 준비</li>
+      </ul>
+    </div>
+  </div>
+</div></section>
+
+</div>
+<nav class="nav" aria-label="페이지 이동">
+  <button id="prev" aria-label="이전 페이지">←</button>
+  <span class="count" id="count">1 / 12</span>
+  <button id="next" aria-label="다음 페이지">→</button>
+</nav>
+<script>
+(function(){
+  var deck=document.getElementById('deck');
+  var slides=deck.querySelectorAll('.slide');
+  var n=slides.length, prev=document.getElementById('prev'), next=document.getElementById('next');
+  var count=document.getElementById('count'), prog=document.getElementById('prog');
+  function idx(){return Math.round(deck.scrollLeft/deck.clientWidth);}
+  function go(i){i=Math.max(0,Math.min(n-1,i));deck.scrollTo({left:i*deck.clientWidth,behavior:'smooth'});}
+  function update(){var i=idx();count.textContent=(i+1)+' / '+n;prev.disabled=i===0;next.disabled=i===n-1;prog.style.width=((i+1)/n*100)+'%';}
+  prev.onclick=function(){go(idx()-1)};
+  next.onclick=function(){go(idx()+1)};
+  deck.addEventListener('scroll',function(){window.requestAnimationFrame(update)});
+  document.addEventListener('keydown',function(e){
+    if(e.target.closest&&e.target.closest('input,textarea'))return;
+    if(e.key==='ArrowRight'||e.key==='PageDown'){e.preventDefault();go(idx()+1)}
+    if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();go(idx()-1)}
+    if(e.key==='Home'){go(0)} if(e.key==='End'){go(n-1)}
+  });
+  deck.addEventListener('wheel',function(e){
+    if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){
+      var s=e.target.closest('.slide');
+      if(s&&s.scrollHeight>s.clientHeight+2){
+        var atTop=s.scrollTop<=0, atBot=s.scrollTop+s.clientHeight>=s.scrollHeight-2;
+        if((e.deltaY<0&&!atTop)||(e.deltaY>0&&!atBot))return;
+      }
+      e.preventDefault();
+      if(!deck._lock){deck._lock=true;go(idx()+(e.deltaY>0?1:-1));setTimeout(function(){deck._lock=false},500);}
+    }
+  },{passive:false});
+  window.addEventListener('resize',function(){deck.scrollLeft=idx()*deck.clientWidth;update();});
+  update();
+})();
+</script>
+</body>
+</html>
