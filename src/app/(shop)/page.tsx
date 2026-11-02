@@ -16,9 +16,9 @@ import type { CategorySlug } from "@/lib/types";
 const CATS: CategorySlug[] = ["beauty", "kpop", "fashion"];
 
 export default function Home() {
-  const { m, locale, region, ready } = useStore();
+  const { m, locale, region, ready, settings } = useStore();
   const { data: items = [] } = useData(() => (ready ? repo.ranking(region, undefined, 5) : Promise.resolve([])), [region, ready]);
-  const time = new Date(2000, 0, 1, SAME_DAY_CUTOFF_HOUR).toLocaleTimeString(locale, { hour: "numeric" });
+  const time = new Date(2000, 0, 1, settings?.cutoffHour ?? SAME_DAY_CUTOFF_HOUR).toLocaleTimeString(locale, { hour: "numeric" });
   return (
     <>
       <TopBar />

@@ -6,16 +6,17 @@ import { repo } from "@/lib/repo";
 import { useData } from "@/lib/use-data";
 import { ORDER_FLOW, type Order, type OrderStatus } from "@/lib/types";
 
-const LABEL: Record<OrderStatus, string> = { paid: "결제 완료", purchased: "구매 완료", delivering: "배달 중", delivered: "프런트 전달" };
-const NEXT: Record<OrderStatus, string> = { paid: "구매 완료 처리", purchased: "배달 출발", delivering: "전달 완료", delivered: "" };
-const BADGE: Record<OrderStatus, string> = { paid: "bg-[#FFF4E5] text-[#8A4B08]", purchased: "bg-[#EAF1FF] text-[#1D4ED8]", delivering: "bg-brand-soft text-brand-ink", delivered: "bg-[#E9F6EC] text-[#1F7A3A]" };
+const LABEL: Record<OrderStatus, string> = { pending: "결제 대기", paid: "결제 완료", purchased: "구매 완료", delivering: "배달 중", delivered: "프런트 전달", cancelled: "취소" };
+const NEXT: Record<OrderStatus, string> = { pending: "", paid: "구매 완료 처리", purchased: "배달 출발", delivering: "전달 완료", delivered: "", cancelled: "" };
+const BADGE: Record<OrderStatus, string> = { pending: "bg-soft text-sub", paid: "bg-[#FFF4E5] text-[#8A4B08]", purchased: "bg-[#EAF1FF] text-[#1D4ED8]", delivering: "bg-brand-soft text-brand-ink", delivered: "bg-[#E9F6EC] text-[#1F7A3A]", cancelled: "bg-soft text-mute" };
 const AREA: Record<string, string> = { myeongdong: "명동", hongdae: "홍대", gangnam: "강남", itaewon: "이태원", jamsil: "잠실", gwanghwamun: "광화문" };
 
 export default function AdminOrders() {
   const { data, error, reload } = useData(() => Promise.all([repo.listOrders(), repo.listHotels()]), []);
   const [busy, setBusy] = useState<string>();
   const [saveError, setSaveError] = useState("");
-  const orders: Order[] = data?.[0] ?? [];
+  // Unpaid and cancelled orders are not work for the team.
+  const orders: Order[] = (data?.[0] ?? []).filter((o) => ORDER_FLOW.includes(o.status));
   const hotelOf = (id: string) => data?.[1].find((h) => h.id === id);
   const advance = async (o: Order) => {
     setBusy(o.id); setSaveError("");
@@ -48,7 +49,7 @@ export default function AdminOrders() {
                     <td className="px-4 py-3 font-semibold">{o.id}</td>
                     <td className="px-4 py-3"><div className="font-semibold">{h ? t(h.name, "ko") : "-"}</div><div className="text-xs text-sub">{h ? AREA[h.area] : ""}</div></td>
                     <td className="px-4 py-3">{o.guestName}</td>
-                    <td className="px-4 py-3">{o.slot.replace("-", "–")}시</td>
+                    <td className="px-4 py-3"><div>{o.slot.replace("-", "–")}시</div><div className="text-xs text-sub">{o.deliveryDate.slice(5).replace("-", "/")}</div></td>
                     <td className="px-4 py-3">{o.lines.reduce((n, l) => n + l.qty, 0)}개</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${BADGE[o.status]}`}>{LABEL[o.status]}</span></td>
                     <td className="px-4 py-3">{NEXT[o.status] && <button disabled={busy === o.id} onClick={() => advance(o)} className="disabled:opacity-50 h-9 rounded-lg border border-brand px-3 text-[13px] font-semibold text-brand hover:bg-brand-soft">{NEXT[o.status]}</button>}</td>

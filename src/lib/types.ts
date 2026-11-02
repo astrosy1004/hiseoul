@@ -42,7 +42,9 @@ export interface Hotel {
   area: "myeongdong" | "hongdae" | "gangnam" | "itaewon" | "jamsil" | "gwanghwamun";
 }
 
-export type OrderStatus = "paid" | "purchased" | "delivering" | "delivered";
+/** pending = waiting for payment; cancelled = payment failed or order cancelled. */
+export type OrderStatus = "pending" | "paid" | "purchased" | "delivering" | "delivered" | "cancelled";
+/** The four steps a paid order moves through. */
 export const ORDER_FLOW: OrderStatus[] = ["paid", "purchased", "delivering", "delivered"];
 
 export interface OrderLine { productId: string; qty: number; unitPriceKrw: number }

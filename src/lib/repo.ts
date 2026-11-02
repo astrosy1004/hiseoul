@@ -2,8 +2,19 @@
 // With Supabase configured (.env.local) data comes from the database;
 // otherwise from the sample data, so the app always runs.
 import { hotels, products, rankings, sampleOrders, staff } from "./mock-data";
+import { DELIVERY_FEE_KRW, MAX_QTY_PER_ITEM, MIN_LEAD_HOURS, SAME_DAY_CUTOFF_HOUR, SERVICE_FEE_KRW } from "./config";
+import { deliveryDays, type Settings } from "./delivery";
 import { supabase } from "./supabase";
-import type { CategorySlug, Hotel, Order, OrderStatus, Product, RankingEntry, Region, Staff } from "./types";
+import type { CategorySlug, DeliverySlot, Hotel, Order, OrderStatus, PaymentMethod, Product, RankingEntry, Region, Staff } from "./types";
+
+export interface NewOrder {
+  email: string; guestName: string; hotelId: string; room?: string;
+  deliveryDate: string; slot: DeliverySlot; paymentMethod: PaymentMethod;
+  lines: { productId: string; qty: number }[];
+}
+/** Error codes from create_order(); the checkout shows a message for each. */
+export class OrderError extends Error {}
+const ORDER_ERRORS = ["invalid_lines", "invalid_name", "invalid_email", "invalid_room", "invalid_hotel", "invalid_slot", "invalid_payment_method", "invalid_date", "slot_closed", "invalid_qty", "unavailable_item", "not_pending", "test_payments_off"];
 
 export type Ranked = RankingEntry & { product: Product };
 
@@ -32,6 +43,9 @@ function must<T>(res: { data: T | null; error: { message: string } | null }): T 
   if (res.error) throw new Error(res.error.message);
   return res.data as T;
 }
+
+const DEFAULT_SETTINGS: Settings = { serviceFeeKrw: SERVICE_FEE_KRW, deliveryFeeKrw: DELIVERY_FEE_KRW, cutoffHour: SAME_DAY_CUTOFF_HOUR, minLeadHours: MIN_LEAD_HOURS, testPayments: true };
+const orderError = (message: string) => new OrderError(ORDER_ERRORS.find((c) => message.includes(c)) ?? "failed");
 
 // In-memory copies so admin changes stick for the session in sample mode.
 let mockOrders = sampleOrders.map((o) => ({ ...o }));
@@ -99,6 +113,63 @@ export const repo = {
     if (!supabase) return mockOrders.find((x) => x.id.toLowerCase() === id.trim().toLowerCase() && x.email.toLowerCase() === email.trim().toLowerCase());
     const row = must(await supabase.rpc("lookup_order", { p_id: id, p_email: email }));
     return row ? toOrder(row) : undefined;
+  },
+
+  async getSettings(): Promise<Settings> {
+    if (!supabase) return DEFAULT_SETTINGS;
+    const r = must(await supabase.from("app_settings").select("*").eq("id", 1).maybeSingle()) as Record<string, number & boolean> | null;
+    return r ? { serviceFeeKrw: r.service_fee_krw, deliveryFeeKrw: r.delivery_fee_krw, cutoffHour: r.cutoff_hour, minLeadHours: r.min_lead_hours, testPayments: r.test_payments } : DEFAULT_SETTINGS;
+  },
+
+  /** Guest checkout. Returns the new order (status "pending" until paid). Throws OrderError. */
+  async createOrder(o: NewOrder): Promise<Order> {
+    if (supabase) {
+      const res = await supabase.rpc("create_order", { p: {
+        email: o.email, guest_name: o.guestName, hotel_id: o.hotelId, room: o.room ?? "", delivery_date: o.deliveryDate,
+        slot: o.slot, payment_method: o.paymentMethod, lines: o.lines.map((l) => ({ product_id: l.productId, qty: l.qty })),
+      } });
+      if (res.error) throw orderError(res.error.message);
+      const order = await repo.lookupOrder(res.data as string, o.email);
+      if (!order) throw new OrderError("failed");
+      return order;
+    }
+    // Sample mode: same checks as the database function.
+    const s = DEFAULT_SETTINGS;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email.trim())) throw new OrderError("invalid_email");
+    if (!o.guestName.trim()) throw new OrderError("invalid_name");
+    if (!hotels.some((h) => h.id === o.hotelId)) throw new OrderError("invalid_hotel");
+    const day = deliveryDays(s).find((d) => d.date === o.deliveryDate);
+    if (!day?.slots.some((x) => x.slot === o.slot && x.open)) throw new OrderError("slot_closed");
+    const merged = new Map<string, number>();
+    o.lines.forEach((l) => merged.set(l.productId, (merged.get(l.productId) ?? 0) + l.qty));
+    if (!merged.size) throw new OrderError("invalid_lines");
+    const lines = [...merged].map(([productId, qty]) => {
+      const p = mockProducts.find((x) => x.id === productId);
+      if (!p || !p.visible || p.stock === "sold_out") throw new OrderError("unavailable_item");
+      if (qty < 1 || qty > MAX_QTY_PER_ITEM) throw new OrderError("invalid_qty");
+      return { productId, qty, unitPriceKrw: p.storePriceKrw };
+    });
+    const itemsKrw = lines.reduce((n, l) => n + l.qty * l.unitPriceKrw, 0);
+    const order: Order = {
+      id: `HS-${1043 + mockOrders.length - sampleOrders.length}`, createdAt: new Date().toISOString(), email: o.email.trim().toLowerCase(),
+      guestName: o.guestName.trim(), hotelId: o.hotelId, room: o.room?.trim() || undefined, deliveryDate: o.deliveryDate, slot: o.slot, lines,
+      itemsKrw, serviceFeeKrw: s.serviceFeeKrw, deliveryFeeKrw: s.deliveryFeeKrw, totalKrw: itemsKrw + s.serviceFeeKrw + s.deliveryFeeKrw,
+      paymentMethod: o.paymentMethod, status: "pending",
+    };
+    mockOrders = [order, ...mockOrders];
+    return order;
+  },
+
+  /** Test payments only (see payments.ts). Throws OrderError. */
+  async confirmTestPayment(id: string, email: string): Promise<void> {
+    if (supabase) {
+      const res = await supabase.rpc("confirm_test_payment", { p_id: id, p_email: email });
+      if (res.error) throw orderError(res.error.message);
+      return;
+    }
+    const o = mockOrders.find((x) => x.id === id && x.email === email.trim().toLowerCase() && x.status === "pending");
+    if (!o) throw new OrderError("not_pending");
+    mockOrders = mockOrders.map((x) => (x.id === id ? { ...x, status: "paid" } : x));
   },
 
   /** Staff only (blocked by database rules for everyone else). */

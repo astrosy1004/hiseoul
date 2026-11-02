@@ -4,10 +4,10 @@ import { DELIVERY_FEE_KRW, SERVICE_FEE_KRW } from "@/lib/config";
 import { useStore } from "@/lib/store";
 
 export function useTotals() {
-  const { cartItems } = useStore();
+  const { cartItems, settings } = useStore();
   const items = cartItems.reduce((s, x) => s + x.product.storePriceKrw * x.qty, 0);
-  const service = items > 0 ? SERVICE_FEE_KRW : 0;
-  const delivery = items > 0 ? DELIVERY_FEE_KRW : 0;
+  const service = items > 0 ? settings?.serviceFeeKrw ?? SERVICE_FEE_KRW : 0;
+  const delivery = items > 0 ? settings?.deliveryFeeKrw ?? DELIVERY_FEE_KRW : 0;
   return { items, service, delivery, total: items + service + delivery };
 }
 

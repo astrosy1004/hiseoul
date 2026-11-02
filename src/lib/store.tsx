@@ -5,6 +5,8 @@ import { detectLocale, messages, type Messages } from "./i18n";
 import type { Currency } from "./config";
 import { repo } from "./repo";
 import type { Locale, Product, Region } from "./types";
+import { MAX_QTY_PER_ITEM } from "./config";
+import type { Settings } from "./delivery";
 
 export interface CartLine { productId: string; qty: number }
 
@@ -13,6 +15,8 @@ interface Store {
   currency: Currency; setCurrency: (c: Currency) => void;
   /** Traveler region used for rankings, remembered per browser. */
   region: Region; setRegion: (r: Region) => void;
+  /** Fees and delivery rules (from the database when connected). */
+  settings?: Settings;
   cart: CartLine[]; add: (id: string, qty?: number) => void; setQty: (id: string, qty: number) => void; clear: () => void;
   cartItems: { product: Product; qty: number }[];
   ready: boolean;
@@ -34,6 +38,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [region, setRegion] = useState<Region>("all");
   const [ready, setReady] = useState(false);
   const [known, setKnown] = useState<Record<string, Product | null>>({});
+  const [settings, setSettings] = useState<Settings>();
+  useEffect(() => { repo.getSettings().then(setSettings).catch(() => undefined); }, []);
 
   useEffect(() => {
     const l = read<Locale>("hs.locale") ?? detectLocale(navigator.language);
@@ -54,16 +60,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     Promise.all(missing.map((id) => repo.getProduct(id).catch(() => undefined)))
       .then((ps) => setKnown((k) => ({ ...k, ...Object.fromEntries(missing.map((id, i) => [id, ps[i] ?? null])) })));
   }, [cart, known]);
+  // Drop cart lines for products that are no longer on sale.
+  useEffect(() => {
+    if (cart.some((x) => known[x.productId] === null)) setCart((c) => c.filter((x) => known[x.productId] !== null));
+  }, [cart, known]);
 
   const value = useMemo<Store>(() => ({
     locale, m: messages(locale),
     setLocale: (l) => { setLocaleState(l); setCurrency(defaultCurrency[l]); },
-    currency, setCurrency, cart, ready, region, setRegion,
-    add: (id, qty = 1) => setCart((c) => c.some((x) => x.productId === id) ? c.map((x) => x.productId === id ? { ...x, qty: x.qty + qty } : x) : [...c, { productId: id, qty }]),
-    setQty: (id, qty) => setCart((c) => qty <= 0 ? c.filter((x) => x.productId !== id) : c.map((x) => x.productId === id ? { ...x, qty } : x)),
+    currency, setCurrency, cart, ready, region, setRegion, settings,
+    add: (id, qty = 1) => setCart((c) => c.some((x) => x.productId === id) ? c.map((x) => x.productId === id ? { ...x, qty: Math.min(MAX_QTY_PER_ITEM, x.qty + qty) } : x) : [...c, { productId: id, qty: Math.min(MAX_QTY_PER_ITEM, qty) }]),
+    setQty: (id, qty) => setCart((c) => qty <= 0 ? c.filter((x) => x.productId !== id) : c.map((x) => x.productId === id ? { ...x, qty: Math.min(MAX_QTY_PER_ITEM, qty) } : x)),
     clear: () => setCart([]),
     cartItems: cart.flatMap((x) => { const product = known[x.productId]; return product ? [{ product, qty: x.qty }] : []; }),
-  }), [locale, currency, cart, ready, known, region]);
+  }), [locale, currency, cart, ready, known, region, settings]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

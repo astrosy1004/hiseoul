@@ -12,6 +12,7 @@ drop table if exists public.rankings cascade;
 drop table if exists public.products cascade;
 drop table if exists public.hotels cascade;
 drop table if exists public.staff cascade;
+drop table if exists public.app_settings cascade;
 drop sequence if exists public.order_no;
 
 -- ---------------------------------------------------------------------------
@@ -79,7 +80,8 @@ create table public.orders (
   delivery_fee_krw   integer not null,
   total_krw          integer not null,
   payment_method     text not null check (payment_method in ('card','alipay','wechatpay','paypay','linepay','grabpay')),
-  status             text not null default 'paid' check (status in ('paid','purchased','delivering','delivered')),
+  -- pending = waiting for payment; cancelled = payment failed or order cancelled
+  status             text not null default 'pending' check (status in ('pending','paid','purchased','delivering','delivered','cancelled')),
   handover_photo_url text,
   updated_at         timestamptz not null default now()
 );
@@ -92,6 +94,17 @@ create table public.order_lines (
   unit_price_krw integer not null,
   primary key (order_id, product_id)
 );
+
+-- Business settings, one row. Owner can change fees without a code release.
+create table public.app_settings (
+  id               integer primary key default 1 check (id = 1),
+  service_fee_krw  integer not null default 4000,   -- TBD: 3,000-5,000
+  delivery_fee_krw integer not null default 0,      -- TBD after courier quotes
+  cutoff_hour      integer not null default 15,     -- same-day orders until 15:00 KST
+  min_lead_hours   integer not null default 3,      -- a slot must start at least this many hours after ordering
+  test_payments    boolean not null default true    -- true until a real payment provider is connected
+);
+insert into public.app_settings default values;
 
 -- ---------------------------------------------------------------------------
 -- Helpers: who is the signed-in staff member?
@@ -143,6 +156,74 @@ language sql stable security definer set search_path = public as $$
    where upper(o.id) = upper(trim(p_id)) and lower(o.email) = lower(trim(p_email))
 $$;
 
+-- Guest checkout. Prices, fees and stock come from the database, never from
+-- the browser. Creates the order as 'pending' (waiting for payment).
+-- p: {"email","guest_name","hotel_id","room","delivery_date","slot","payment_method","lines":[{"product_id","qty"}]}
+create or replace function public.create_order(p jsonb) returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  s       public.app_settings;
+  kst     timestamp := now() at time zone 'Asia/Seoul';
+  d       date;
+  v_id    text;
+  v_items integer;
+  v_lines integer;
+  v_ok    integer;
+begin
+  select * into s from public.app_settings where id = 1;
+  if jsonb_typeof(p -> 'lines') is distinct from 'array' or jsonb_array_length(p -> 'lines') not between 1 and 20 then raise exception 'invalid_lines'; end if;
+  if length(trim(coalesce(p ->> 'guest_name', ''))) not between 1 and 80 then raise exception 'invalid_name'; end if;
+  if coalesce(p ->> 'email', '') !~ '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$' or length(p ->> 'email') > 200 then raise exception 'invalid_email'; end if;
+  if length(coalesce(p ->> 'room', '')) > 20 then raise exception 'invalid_room'; end if;
+  if not exists (select 1 from public.hotels h where h.id = p ->> 'hotel_id' and h.active) then raise exception 'invalid_hotel'; end if;
+
+  if coalesce(p ->> 'slot', '') not in ('12-15','15-18','18-21','21-23') then raise exception 'invalid_slot'; end if;
+  if coalesce(p ->> 'payment_method', '') not in ('card','alipay','wechatpay','paypay','linepay','grabpay') then raise exception 'invalid_payment_method'; end if;
+  begin d := (p ->> 'delivery_date')::date; exception when others then raise exception 'invalid_date'; end;
+  if d < kst::date or d > kst::date + 7 then raise exception 'invalid_date'; end if;
+  if d = kst::date and (extract(hour from kst) >= s.cutoff_hour
+      or split_part(p ->> 'slot', '-', 1)::int < extract(hour from kst) + s.min_lead_hours) then
+    raise exception 'slot_closed';
+  end if;
+
+  -- Merge duplicate lines, then check every product is on sale.
+  create temp table if not exists _req (product_id text primary key, qty integer) on commit drop;
+  delete from _req;
+  insert into _req
+    select x ->> 'product_id', sum((x ->> 'qty')::int)
+      from jsonb_array_elements(p -> 'lines') x group by 1;
+  if exists (select 1 from _req where qty not between 1 and 10) then raise exception 'invalid_qty'; end if;
+  select count(*) into v_lines from _req;
+  select count(*), coalesce(sum(r.qty * pr.store_price_krw), 0) into v_ok, v_items
+    from _req r join public.products pr on pr.id = r.product_id
+   where pr.visible and pr.stock <> 'sold_out';
+  if v_ok <> v_lines then raise exception 'unavailable_item'; end if;
+
+  insert into public.orders (email, guest_name, hotel_id, room, delivery_date, slot,
+                             items_krw, service_fee_krw, delivery_fee_krw, total_krw, payment_method, status)
+  values (lower(trim(p ->> 'email')), trim(p ->> 'guest_name'), p ->> 'hotel_id', nullif(trim(coalesce(p ->> 'room', '')), ''),
+          d, p ->> 'slot', v_items, s.service_fee_krw, s.delivery_fee_krw,
+          v_items + s.service_fee_krw + s.delivery_fee_krw, p ->> 'payment_method', 'pending')
+  returning id into v_id;
+
+  insert into public.order_lines (order_id, product_id, qty, unit_price_krw)
+    select v_id, r.product_id, r.qty, pr.store_price_krw from _req r join public.products pr on pr.id = r.product_id;
+  return v_id;
+end $$;
+
+-- Test payments only: marks a pending order as paid. Refuses once
+-- app_settings.test_payments is turned off (a real provider confirms
+-- payments from the server with its own secret key instead).
+create or replace function public.confirm_test_payment(p_id text, p_email text) returns text
+language plpgsql security definer set search_path = public as $$
+begin
+  if not (select test_payments from public.app_settings where id = 1) then raise exception 'test_payments_off'; end if;
+  update public.orders set status = 'paid'
+   where id = upper(trim(p_id)) and lower(email) = lower(trim(p_email)) and status = 'pending';
+  if not found then raise exception 'not_pending'; end if;
+  return 'paid';
+end $$;
+
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
 create trigger products_touch before update on public.products for each row execute function public.touch_updated_at();
@@ -157,6 +238,10 @@ alter table public.hotels      enable row level security;
 alter table public.staff       enable row level security;
 alter table public.orders      enable row level security;
 alter table public.order_lines enable row level security;
+alter table public.app_settings enable row level security;
+
+create policy settings_read   on public.app_settings for select using (true);
+create policy settings_write  on public.app_settings for update using (public.has_role(array['owner'])) with check (public.has_role(array['owner']));
 
 -- Shoppers see visible products; owner/manager see and edit everything.
 create policy products_read   on public.products for select using (visible or public.has_role(array['owner','manager','staff']));
@@ -182,6 +267,8 @@ revoke update on public.orders from anon, authenticated;
 grant  update (status, handover_photo_url) on public.orders to authenticated;
 
 grant execute on function public.lookup_order(text, text) to anon, authenticated;
+grant execute on function public.create_order(jsonb) to anon, authenticated;
+grant execute on function public.confirm_test_payment(text, text) to anon, authenticated;
 grant execute on function public.staff_me() to authenticated;
 grant execute on function public.staff_list() to authenticated;
 revoke execute on function public.staff_me() from public, anon;
