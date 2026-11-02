@@ -6,11 +6,12 @@ import LocaleSwitch from "@/components/shop/LocaleSwitch";
 import { fill } from "@/lib/i18n";
 import { useStore } from "@/lib/store";
 
-// Photos go in /public/intro/1.jpg ... 3.jpg once licensed Seoul photos are ready.
-const PHOTOS: { src?: string; what: string }[] = [
-  { what: "Myeongdong street at night" },
-  { what: "Skincare shelves in a store" },
-  { what: "Hotel night view with N Seoul Tower" },
+// Han River skyline at sunset (owner-supplied hi.png). Each slide frames a
+// different part of the same photo; add more photos in /public/intro later.
+const PHOTOS: { src?: string; pos?: string; what: string }[] = [
+  { src: "/intro/seoul.jpg", pos: "20% 50%", what: "Han River bridges at sunset" },
+  { src: "/intro/seoul.jpg", pos: "50% 50%", what: "Seoul skyline" },
+  { src: "/intro/seoul.jpg", pos: "68% 50%", what: "N Seoul Tower over the city" },
 ];
 
 export default function Welcome() {
@@ -28,12 +29,14 @@ export default function Welcome() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-[480px] flex-col bg-white sm:border-x sm:border-line">
       <div className="relative h-[56vh] min-h-[360px] bg-[#2A2A2E]">
-        {photo.src ? <img src={photo.src} alt="" className="h-full w-full object-cover" /> : (
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {photo.src ? <img src={photo.src} alt={photo.what} style={{ objectPosition: photo.pos }} className="h-full w-full object-cover transition-[object-position] duration-700" /> : (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center text-[#D9D9DE]">
             <Icon name="image" size={36} />
             <span className="text-sm">{fill(m.photoSlot, { what: photo.what })}</span>
           </div>
         )}
+        {photo.src && <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent" />}
         <div className="absolute inset-x-5 top-4 flex items-center justify-between">
           <span className="text-xl font-extrabold text-white">Hi<span className="text-[#F7A8C4]">Seoul</span></span>
           <LocaleSwitch dark />
