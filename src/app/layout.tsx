@@ -1,23 +1,21 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "HiSeoul · K-Shopping delivered to your hotel",
-  description: "Buy the best of K-Beauty, K-Pop and more. Same-day delivery to your hotel in Seoul.",
+  title: "HiSeoul · K-Beauty & K-Pop delivered to your hotel",
+  description: "Shop what travelers in Seoul are buying. Same store prices, same-day delivery to your hotel front desk.",
 };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#C2255C" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen">
-        <StoreProvider>
-          <Header />
-          <main className="mx-auto max-w-6xl px-4 pb-24">{children}</main>
-          <Footer />
-        </StoreProvider>
+      <head>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+      </head>
+      <body>
+        <StoreProvider>{children}</StoreProvider>
       </body>
     </html>
   );
