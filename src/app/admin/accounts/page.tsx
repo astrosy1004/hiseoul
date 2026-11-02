@@ -1,9 +1,8 @@
 "use client";
-import { useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import { ROLE_LABEL } from "@/lib/admin-session";
 import { repo } from "@/lib/repo";
-import type { Staff } from "@/lib/types";
+import { useData } from "@/lib/use-data";
 
 const PERMS: [string, boolean, boolean, boolean][] = [
   ["주문 보기·상태 변경", true, true, true],
@@ -14,7 +13,8 @@ const PERMS: [string, boolean, boolean, boolean][] = [
 ];
 
 export default function Accounts() {
-  const [people, setPeople] = useState<Staff[]>(repo.listStaff());
+  const { data: people = [], error, reload } = useData(() => repo.listStaff(), []);
+  const toggle = async (id: string, active: boolean) => { try { await repo.setStaffActive(id, active); } finally { reload(); } };
   const fmt = (iso?: string) => iso ? new Date(iso).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "초대 수락 전";
   return (
     <AdminShell>
@@ -24,8 +24,9 @@ export default function Accounts() {
             <h1 className="text-2xl font-extrabold">직원 계정</h1>
             <p className="mt-1 text-[13px] text-sub">대표만 볼 수 있어요 · 초대 메일로 가입하고 2단계 인증을 켜야 로그인돼요</p>
           </div>
-          <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white">직원 초대</button>
+          <button disabled title="6단계에서 초대 메일 보내기를 붙여요" className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white opacity-50">직원 초대</button>
         </div>
+        {error && <p className="rounded-xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B42318]">불러오지 못했어요: {error}</p>}
         <div className="overflow-x-auto rounded-2xl border border-line bg-white">
           <table className="w-full min-w-[760px] text-sm">
             <thead className="text-left text-xs text-sub"><tr className="border-b border-line">{["이름 · 이메일", "권한", "2단계 인증", "마지막 로그인", "상태", ""].map((h, i) => <th key={i} className="px-4 py-3 font-bold">{h}</th>)}</tr></thead>
@@ -37,7 +38,7 @@ export default function Accounts() {
                   <td className={`px-4 py-3 text-[13px] font-bold ${p.mfaEnabled ? "text-[#1F7A3A]" : "text-[#B4410E]"}`}>{p.mfaEnabled ? "켜짐" : "미설정"}</td>
                   <td className="px-4 py-3 text-[13px] text-sub">{fmt(p.lastLoginAt)}</td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${p.active ? "bg-[#E9F6EC] text-[#1F7A3A]" : "bg-placeholder text-sub"}`}>{p.active ? "활성" : "정지"}</span></td>
-                  <td className="px-4 py-3">{p.role !== "owner" && <button onClick={() => setPeople((ps) => ps.map((x) => x.id === p.id ? { ...x, active: !x.active } : x))} className="h-8 rounded-lg border border-line px-2.5 text-xs font-semibold">{p.active ? "정지" : "다시 켜기"}</button>}</td>
+                  <td className="px-4 py-3">{p.role !== "owner" && <button onClick={() => toggle(p.id, !p.active)} className="h-8 rounded-lg border border-line px-2.5 text-xs font-semibold">{p.active ? "정지" : "다시 켜기"}</button>}</td>
                 </tr>
               ))}
             </tbody>

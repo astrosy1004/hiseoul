@@ -10,6 +10,7 @@ import { SAME_DAY_CUTOFF_HOUR } from "@/lib/config";
 import { t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
 import { repo } from "@/lib/repo";
+import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
 import type { CategorySlug, Region } from "@/lib/types";
 
@@ -19,7 +20,7 @@ const CATS: CategorySlug[] = ["beauty", "kpop", "fashion"];
 export default function Home() {
   const { m, locale } = useStore();
   const [region, setRegion] = useState<Region>(locale === "ja" ? "japan" : locale.startsWith("zh") ? "greater_china" : "all");
-  const items = repo.ranking(region, undefined, 5);
+  const { data: items = [] } = useData(() => repo.ranking(region, undefined, 5), [region]);
   const time = locale === "ko" ? `오후 ${SAME_DAY_CUTOFF_HOUR - 12}시` : `${SAME_DAY_CUTOFF_HOUR - 12} PM`;
   return (
     <>

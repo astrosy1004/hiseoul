@@ -29,6 +29,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
+  const [known, setKnown] = useState<Record<string, Product | null>>({});
 
   useEffect(() => {
     const l = read<Locale>("hs.locale") ?? detectLocale(navigator.language);
@@ -40,6 +41,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (ready) write("hs.locale", locale); document.documentElement.lang = locale; }, [locale, ready]);
   useEffect(() => { if (ready) write("hs.currency", currency); }, [currency, ready]);
   useEffect(() => { if (ready) write("hs.cart", cart); }, [cart, ready]);
+  // Load product details for cart lines we have not seen yet.
+  useEffect(() => {
+    const missing = cart.map((x) => x.productId).filter((id) => !(id in known));
+    if (!missing.length) return;
+    Promise.all(missing.map((id) => repo.getProduct(id).catch(() => undefined)))
+      .then((ps) => setKnown((k) => ({ ...k, ...Object.fromEntries(missing.map((id, i) => [id, ps[i] ?? null])) })));
+  }, [cart, known]);
 
   const value = useMemo<Store>(() => ({
     locale, m: messages(locale),
@@ -48,8 +56,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     add: (id, qty = 1) => setCart((c) => c.some((x) => x.productId === id) ? c.map((x) => x.productId === id ? { ...x, qty: x.qty + qty } : x) : [...c, { productId: id, qty }]),
     setQty: (id, qty) => setCart((c) => qty <= 0 ? c.filter((x) => x.productId !== id) : c.map((x) => x.productId === id ? { ...x, qty } : x)),
     clear: () => setCart([]),
-    cartItems: cart.flatMap((x) => { const product = repo.getProduct(x.productId); return product ? [{ product, qty: x.qty }] : []; }),
-  }), [locale, currency, cart, ready]);
+    cartItems: cart.flatMap((x) => { const product = known[x.productId]; return product ? [{ product, qty: x.qty }] : []; }),
+  }), [locale, currency, cart, ready, known]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

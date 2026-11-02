@@ -8,13 +8,15 @@ import TopBar from "@/components/shop/TopBar";
 import { krw, t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
 import { repo } from "@/lib/repo";
+import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
 
 export default function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { m, locale, currency, add } = useStore();
   const [added, setAdded] = useState(false);
-  const p = repo.getProduct(id);
+  const { data: p, loading } = useData(() => repo.getProduct(id), [id]);
+  if (loading) return (<><TopBar back /><div className="mx-5 h-[300px] animate-pulse rounded-2xl bg-soft" /></>);
   if (!p || !p.visible) notFound();
   return (
     <>

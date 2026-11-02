@@ -1,19 +1,29 @@
 "use client";
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import TopBar from "@/components/shop/TopBar";
 import { t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
-import { repo } from "@/lib/repo";
+import { recallLookup, repo } from "@/lib/repo";
+import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
 import { ORDER_FLOW } from "@/lib/types";
 
 export default function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { m, locale } = useStore();
-  const order = repo.listOrders().find((o) => o.id === id);
-  if (!order) return (<><TopBar back /><p className="p-10 text-center text-sub">—</p></>);
-  const hotel = repo.getHotel(order.hotelId);
+  const router = useRouter();
+  // Orders are private: show one only after a lookup with its email in this tab.
+  const { data, loading } = useData(async () => {
+    const email = recallLookup(id);
+    if (!email) return null;
+    const order = await repo.lookupOrder(id, email);
+    return order ? { order, hotel: await repo.getHotel(order.hotelId) } : null;
+  }, [id]);
+  useEffect(() => { if (!loading && !data) router.replace("/orders/lookup"); }, [loading, data, router]);
+  if (!data) return (<><TopBar back /><p className="p-10 text-center text-sub">…</p></>);
+  const { order, hotel } = data;
   const done = ORDER_FLOW.indexOf(order.status);
   return (
     <>

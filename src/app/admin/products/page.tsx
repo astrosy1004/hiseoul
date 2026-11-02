@@ -1,30 +1,32 @@
 "use client";
-import { useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import { krw, t } from "@/lib/format";
 import { repo } from "@/lib/repo";
-import type { Product } from "@/lib/types";
+import { useData } from "@/lib/use-data";
 
 const STOCK = { in_stock: ["있음", "text-[#1F7A3A]"], low: ["적음", "text-[#B4410E]"], sold_out: ["품절", "text-[#B42318]"] } as const;
 const input = "h-10 w-full rounded-lg border border-line px-2.5 text-sm outline-none focus:border-brand";
 
 export default function AdminProducts() {
-  const [rows, setRows] = useState<Product[]>(() => {
-    const ranked = repo.ranking("all", "beauty", 10).map((r) => r.product.id);
-    const all = repo.listProducts({ category: "beauty", includeHidden: true });
+  const { data: rows = [], error, setData } = useData(async () => {
+    const [rankedRows, all] = await Promise.all([repo.ranking("all", "beauty", 10), repo.listProducts({ category: "beauty", includeHidden: true })]);
+    const ranked = rankedRows.map((r) => r.product.id);
     return [...all].sort((a, b) => (ranked.indexOf(a.id) + 1 || 99) - (ranked.indexOf(b.id) + 1 || 99));
-  });
-  const toggle = (id: string) => setRows((rs) => rs.map((r) => r.id === id ? { ...r, visible: !r.visible } : r));
+  }, []);
+  const toggle = async (id: string, visible: boolean) => {
+    setData(rows.map((r) => (r.id === id ? { ...r, visible } : r)));
+    try { await repo.setProductVisible(id, visible); } catch { setData(rows); }
+  };
   return (
     <AdminShell>
       <div className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-extrabold">K-뷰티 TOP 10</h1>
-            <p className="mt-1 text-[13px] text-sub">명동점 재고를 확인한 상품만 앱에 노출돼요</p>
+            <p className="mt-1 text-[13px] text-sub">명동점 재고를 확인한 상품만 켜 주세요 · 스위치를 바꾸면 바로 앱에 반영돼요</p>
           </div>
-          <button className="h-11 rounded-xl bg-brand px-4 text-sm font-bold text-white">앱에 반영하기</button>
         </div>
+        {error && <p className="rounded-xl bg-[#FDECEC] px-4 py-3 text-sm text-[#B42318]">불러오지 못했어요: {error}</p>}
         <div className="flex flex-wrap items-start gap-5">
           <div className="min-w-0 flex-[999_1_560px] overflow-x-auto rounded-2xl border border-line bg-white">
             <table className="w-full min-w-[600px] text-sm">
@@ -37,7 +39,7 @@ export default function AdminProducts() {
                     <td className="px-4 py-2.5">{krw(p.storePriceKrw)}</td>
                     <td className={`px-4 py-2.5 text-[13px] font-bold ${STOCK[p.stock][1]}`}>{STOCK[p.stock][0]}</td>
                     <td className="px-4 py-2.5">
-                      <button role="switch" aria-checked={p.visible} aria-label="앱 노출" onClick={() => toggle(p.id)} className={`relative h-[26px] w-11 rounded-full transition ${p.visible ? "bg-brand" : "bg-[#C9CDD2]"}`}>
+                      <button role="switch" aria-checked={p.visible} aria-label="앱 노출" onClick={() => toggle(p.id, !p.visible)} className={`relative h-[26px] w-11 rounded-full transition ${p.visible ? "bg-brand" : "bg-[#C9CDD2]"}`}>
                         <span className={`absolute top-[3px] h-5 w-5 rounded-full bg-white transition-all ${p.visible ? "left-[21px]" : "left-[3px]"}`} />
                       </button>
                     </td>

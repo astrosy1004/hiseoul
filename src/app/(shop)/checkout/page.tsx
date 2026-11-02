@@ -6,6 +6,7 @@ import { TotalsBox, useTotals } from "@/components/shop/Totals";
 import { price, t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
 import { repo } from "@/lib/repo";
+import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
 import type { DeliverySlot, PaymentMethod } from "@/lib/types";
 
@@ -23,8 +24,9 @@ export default function Checkout() {
   const [email, setEmail] = useState("");
   const [slot, setSlot] = useState<DeliverySlot>("18-21");
   const [method, setMethod] = useState<PaymentMethod>("card");
-  const hotels = useMemo(() => repo.listHotels().filter((h) => !q || `${h.name.en} ${h.name.ko ?? ""}`.toLowerCase().includes(q.toLowerCase())), [q]);
-  const hotel = hotelId ? repo.getHotel(hotelId) : undefined;
+  const { data: allHotels = [] } = useData(() => repo.listHotels(), []);
+  const hotels = useMemo(() => allHotels.filter((h) => !q || `${h.name.en} ${h.name.ko ?? ""}`.toLowerCase().includes(q.toLowerCase())), [q, allHotels]);
+  const hotel = hotelId ? allHotels.find((h) => h.id === hotelId) : undefined;
   const valid = cartItems.length > 0 && hotel && name.trim() && /\S+@\S+\.\S+/.test(email);
 
   return (

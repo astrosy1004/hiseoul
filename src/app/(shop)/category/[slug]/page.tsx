@@ -9,6 +9,7 @@ import TopBar from "@/components/shop/TopBar";
 import { t } from "@/lib/format";
 import { fill } from "@/lib/i18n";
 import { repo } from "@/lib/repo";
+import { useData } from "@/lib/use-data";
 import { useStore } from "@/lib/store";
 import type { CategorySlug } from "@/lib/types";
 
@@ -17,9 +18,9 @@ const CATS: CategorySlug[] = ["beauty", "kpop", "fashion"];
 export default function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const { m, locale } = useStore();
-  if (!CATS.includes(slug as CategorySlug)) notFound();
   const cat = slug as CategorySlug;
-  const items = repo.ranking("all", cat, 10);
+  const { data: items = [] } = useData(() => repo.ranking("all", cat, 10), [cat]);
+  if (!CATS.includes(cat)) notFound();
   return (
     <>
       <TopBar back title={fill(m.best, { cat: m[`cat_${cat}`] })} />

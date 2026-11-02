@@ -16,9 +16,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [me, setMe] = useState<Staff | null | undefined>(undefined);
   useEffect(() => {
-    const s = getSession();
-    setMe(s ?? null);
-    if (!s) router.replace("/admin/login");
+    let alive = true;
+    getSession().then((s) => {
+      if (!alive) return;
+      setMe(s);
+      if (!s) router.replace("/admin/login");
+    });
+    return () => { alive = false; };
   }, [router, path]);
   if (!me) return <div className="min-h-dvh bg-soft" />;
   const nav = NAV.filter((n) => (n.roles as readonly string[]).includes(me.role));
@@ -34,7 +38,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="mt-auto hidden flex-col gap-1 px-3 pt-6 text-xs text-sub md:flex">
           <span className="font-semibold text-ink">{me.name}</span><span>{ROLE_LABEL[me.role]}</span>
-          <button onClick={() => { signOut(); router.replace("/admin/login"); }} className="mt-2 self-start font-semibold text-sub underline">로그아웃</button>
+          <button onClick={async () => { await signOut(); router.replace("/admin/login"); }} className="mt-2 self-start font-semibold text-sub underline">로그아웃</button>
         </div>
       </aside>
       <main className="min-w-0 flex-[999_1_560px] p-6 md:p-8">
