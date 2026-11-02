@@ -24,7 +24,15 @@ export async function startSignIn(email: string, password: string): Promise<Sign
     return s && password ? { ok: true, factorId: s.id } : { ok: false, error: "이메일 또는 비밀번호를 확인하세요." };
   }
   const { error } = await supabase.auth.signInWithPassword({ email: mail, password });
-  if (error) return { ok: false, error: error.status === 429 ? "시도가 너무 많아요. 잠시 후 다시 해 주세요." : "이메일 또는 비밀번호를 확인하세요." };
+  if (error) {
+    const code = (error as { code?: string }).code;
+    if (error.status === 429) return { ok: false, error: "시도가 너무 많아요. 잠시 후 다시 해 주세요." };
+    if (code === "email_not_confirmed") return { ok: false, error: "이메일 확인이 안 된 계정이에요. Supabase > Authentication > Users에서 계정을 확인(Confirm) 처리해 주세요." };
+    if (code === "invalid_credentials") return { ok: false, error: "이메일 또는 비밀번호가 맞지 않아요. (비밀번호는 6자 이상)" };
+    if (!error.status) return { ok: false, error: "Supabase에 접속하지 못했어요. .env.local의 주소를 확인하세요." };
+    if (error.status === 401 || /api key/i.test(error.message)) return { ok: false, error: "Supabase 키가 맞지 않아요. .env.local의 Publishable key를 확인하세요." };
+    return { ok: false, error: `로그인하지 못했어요: ${error.message}` };
+  }
   const { data: f, error: fe } = await supabase.auth.mfa.listFactors();
   if (fe) return { ok: false, error: fe.message };
   const totp = f.totp.find((x) => x.status === "verified");
