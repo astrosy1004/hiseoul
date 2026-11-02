@@ -13,14 +13,14 @@ K-팝·K-뷰티에 관심 있는 외국인 여행객을 위한 쇼핑 웹앱입�
 | 3 | 상품·랭킹 화면 (지역별 랭킹, 피부 타입 필터, 상세, 검색, 5개 언어) | 완료 |
 | 4 | AI 피부 진단 (질문 5개 → 루틴 추천, Claude 설명, 공유 이미지) | 완료 |
 | 5 | 장바구니·호텔 배달 주문·결제 (시험 결제, PG 연결부 준비) | 완료 |
-| 6 | 관리자 (주문, 상품 + AI 설명, 직원 계정) | 예정 |
+| 6 | 관리자 (상품 등록 + AI 설명·번역, TOP 10 편집, 직원 초대, 운영 설정) | 완료 |
 | 7 | 배달 추적·알림 | 예정 |
 | 8 | 테스트·배포 | 예정 |
 
 ## 화면 주소
 
 - 고객: `/welcome`(첫 방문 안내), `/`, `/category/beauty`, `/product/b1`, `/cart`, `/checkout`, `/orders/lookup`, `/orders/HS-1042`, `/skin-match`, `/search`
-- 관리자: `/admin/login` → `/admin`, `/admin/products`, `/admin/accounts`
+- 관리자: `/admin/login` → `/admin`(주문), `/admin/products`(상품), `/admin/ranking`(TOP 10), `/admin/accounts`(직원), `/admin/settings`(운영 설정)
 - DB 미연결일 때 개발용 관리자 로그인: `owner@hiseoul.kr` + 아무 비밀번호 + 아무 6자리 숫자
 - 주문 조회 예시: `yuki@example.com` / `HS-1042`
 
@@ -45,12 +45,14 @@ npm run build    # 프로덕션 빌드 확인
 2. **Authentication > Users > Add user**로 대표 계정(이메일·비밀번호, Auto Confirm 체크)을 만들기
 3. `supabase/owner.sql`의 이메일을 2번 이메일로 바꿔 SQL Editor에서 Run
 4. `.env.local.example`을 `.env.local`로 복사하고 **Project Settings > API Keys**의 Project URL과 Publishable key를 넣기
-5. (선택) AI 피부 진단 설명을 켜려면 `.env.local`에 `ANTHROPIC_API_KEY=`를 추가 (platform.claude.com에서 발급, 서버에서만 사용). 없으면 기본 문구로 동작
-6. `npm install` → `npm run dev` 후 `/admin/login`에서 로그인 → 처음에는 QR을 인증 앱(Google Authenticator 등)으로 찍고 6자리 입력
+5. (선택) AI 기능(피부 진단 설명, 상품 사진 → 이름·설명·번역)을 켜려면 `.env.local`에 `ANTHROPIC_API_KEY=`를 추가 (platform.claude.com에서 발급, 서버에서만 사용). 없으면 피부 진단은 기본 문구, 상품은 직접 입력
+6. (선택) 직원 초대 메일을 자동으로 보내려면 `.env.local`에 `SUPABASE_SECRET_KEY=`(Project Settings > API Keys의 Secret key)를 추가. **NEXT_PUBLIC_를 붙이면 절대 안 돼요.** 없으면 직원은 등록되고, 초대 메일은 Supabase > Authentication > Users > Invite user에서 보내요
+7. **Authentication > URL Configuration**의 Site URL과 Redirect URLs에 앱 주소(개발 중엔 `http://localhost:3000/**`)를 넣기. 초대·비밀번호 찾기 메일의 링크가 `/admin/login?setup=1`로 돌아와요
+8. `npm install` → `npm run dev` 후 `/admin/login`에서 로그인 → 처음에는 QR을 인증 앱(Google Authenticator 등)으로 찍고 6자리 입력
 
-결제: 지금은 **시험 결제**예요(실제 돈이 나가지 않음). PG가 정해지면 `src/lib/payments.ts`만 바꾸고, Supabase `app_settings.test_payments`를 false로 바꿔 시험 결제를 막아요. 서비스 수수료·배달비·마감 시각도 `app_settings` 표에서 바꿀 수 있어요.
+결제: 지금은 **시험 결제**예요(실제 돈이 나가지 않음). PG가 정해지면 `src/lib/payments.ts`만 바꾸고, 관리자 > 운영 설정에서 시험 결제를 꺼요. 서비스 수수료·배달비·마감 시각·준비 시간도 같은 화면에서 바꿔요.
 
-보안 규칙 요약: 손님은 노출 상품·랭킹·호텔만 읽고, 주문은 주문번호+이메일로만 조회해요. 주문·직원 데이터는 인증 앱 확인까지 마친 직원만 볼 수 있고, 직원은 주문 상태만 바꿀 수 있어요(금액은 못 바꿈). 직원 계정은 대표만 관리해요.
+보안 규칙 요약: 손님은 노출 상품·랭킹·호텔만 읽고, 주문은 주문번호+이메일로만 조회해요. 주문·직원 데이터는 인증 앱 확인까지 마친 직원만 볼 수 있고, 직원은 주문 상태만 바꿀 수 있어요(금액은 못 바꿈). 직원 계정과 운영 설정은 대표만, 상품·사진·순위는 대표와 운영 매니저만 바꿀 수 있어요. AI 상품 작성과 직원 초대 서버 주소도 같은 규칙으로 로그인을 확인해요.
 
 예시 데이터를 바꾸면 `node --experimental-strip-types scripts/make-seed.mjs`로 SQL을 다시 만들어요.
 

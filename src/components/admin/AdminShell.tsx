@@ -7,8 +7,10 @@ import type { Staff } from "@/lib/types";
 
 const NAV = [
   { href: "/admin", label: "오늘 주문", roles: ["owner", "manager", "staff"] },
-  { href: "/admin/products", label: "상품·랭킹", roles: ["owner", "manager"] },
+  { href: "/admin/products", label: "상품", roles: ["owner", "manager"] },
+  { href: "/admin/ranking", label: "TOP 10 순위", roles: ["owner", "manager"] },
   { href: "/admin/accounts", label: "직원 계정", roles: ["owner"] },
+  { href: "/admin/settings", label: "운영 설정", roles: ["owner"] },
 ] as const;
 
 export default function AdminShell({ children }: { children: ReactNode }) {

@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { startSignIn, verifyCode } from "@/lib/admin-session";
+import { linkSignIn, sendPasswordLink, setPassword, startSignIn, verifyCode, type SignInStep } from "@/lib/admin-session";
 import { usingSupabase } from "@/lib/supabase";
 
 const input = "h-11 w-full rounded-xl border border-line px-3 text-[15px] outline-none focus:border-brand";
@@ -15,13 +15,33 @@ export default function AdminLogin() {
   const [enroll, setEnroll] = useState<{ qr: string; secret: string }>();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // From an invite / reset email: choose a password first.
+  const [linkEmail, setLinkEmail] = useState<string | null>(null);
+  const [pw2, setPw2] = useState("");
+  const [info, setInfo] = useState("");
+  useEffect(() => { linkSignIn().then((e) => { if (e) { setLinkEmail(e); setEmail(e); } }); }, []);
+
+  const next = (r: SignInStep) => {
+    if (!r.ok) return setError(r.error);
+    setFactorId(r.factorId); setEnroll(r.enroll); setLinkEmail(null);
+  };
+  const choosePassword = async (e: React.FormEvent) => {
+    e.preventDefault(); setError("");
+    if (pw !== pw2) return setError("두 비밀번호가 달라요.");
+    setBusy(true); const r = await setPassword(pw); setBusy(false); next(r);
+  };
+  const forgot = async () => {
+    setError(""); setInfo("");
+    if (!email.trim()) return setError("이메일을 먼저 적어 주세요.");
+    setBusy(true); const err = await sendPasswordLink(email); setBusy(false);
+    if (err) setError(err); else setInfo(`${email.trim()}로 비밀번호 설정 링크를 보냈어요. 메일을 확인하세요.`);
+  };
 
   const step1 = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setError("");
     const r = await startSignIn(email, pw);
     setBusy(false);
-    if (!r.ok) return setError(r.error);
-    setFactorId(r.factorId); setEnroll(r.enroll);
+    next(r);
   };
   const step2 = async (e: React.FormEvent) => {
     e.preventDefault(); if (!factorId) return;
@@ -39,12 +59,22 @@ export default function AdminLogin() {
           <div className="text-2xl font-extrabold">Hi<span className="text-brand">Seoul</span> <span className="text-sm font-semibold text-sub">관리자</span></div>
           <p className="mt-1 text-[13px] text-sub">초대받은 직원 계정으로 로그인하세요.</p>
         </div>
-        {!factorId ? (
+        {linkEmail && !factorId ? (
+          <form className="flex flex-col gap-3.5" onSubmit={choosePassword}>
+            <div className="rounded-xl bg-brand-soft px-3.5 py-3 text-[13px] text-brand-ink"><b>{linkEmail}</b> 계정의 비밀번호를 만들어 주세요. 다음 단계에서 인증 앱을 연결해요.</div>
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">새 비밀번호 (8자 이상)<input className={input} value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="new-password" minLength={8} required autoFocus /></label>
+            <label className="flex flex-col gap-1.5 text-[13px] font-semibold">한 번 더<input className={input} value={pw2} onChange={(e) => setPw2(e.target.value)} type="password" autoComplete="new-password" required /></label>
+            {error && <p className="text-sm text-[#B42318]">{error}</p>}
+            <button disabled={busy} className="h-12 rounded-xl bg-brand font-bold text-white disabled:opacity-60">{busy ? "저장 중…" : "비밀번호 저장"}</button>
+          </form>
+        ) : !factorId ? (
           <form className="flex flex-col gap-3.5" onSubmit={step1}>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold">이메일<input className={input} value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="username" required /></label>
             <label className="flex flex-col gap-1.5 text-[13px] font-semibold">비밀번호<input className={input} value={pw} onChange={(e) => setPw(e.target.value)} type="password" autoComplete="current-password" required /></label>
             {error && <p className="text-sm text-[#B42318]">{error}</p>}
+            {info && <p role="status" className="text-sm text-[#1F7A3A]">{info}</p>}
             <button disabled={busy} className="h-12 rounded-xl bg-brand font-bold text-white disabled:opacity-60">{busy ? "확인 중…" : "로그인"}</button>
+            {usingSupabase && <button type="button" onClick={forgot} disabled={busy} className="text-[13px] font-semibold text-sub">비밀번호를 잊었어요</button>}
           </form>
         ) : (
           <form className="flex flex-col gap-3.5" onSubmit={step2}>

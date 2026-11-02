@@ -98,10 +98,10 @@ create table public.order_lines (
 -- Business settings, one row. Owner can change fees without a code release.
 create table public.app_settings (
   id               integer primary key default 1 check (id = 1),
-  service_fee_krw  integer not null default 4000,   -- TBD: 3,000-5,000
-  delivery_fee_krw integer not null default 0,      -- TBD after courier quotes
-  cutoff_hour      integer not null default 15,     -- same-day orders until 15:00 KST
-  min_lead_hours   integer not null default 3,      -- a slot must start at least this many hours after ordering
+  service_fee_krw  integer not null default 4000 check (service_fee_krw between 0 and 100000),  -- TBD: 3,000-5,000
+  delivery_fee_krw integer not null default 0 check (delivery_fee_krw between 0 and 100000),    -- TBD after courier quotes
+  cutoff_hour      integer not null default 15 check (cutoff_hour between 0 and 23),  -- same-day orders until 15:00 KST
+  min_lead_hours   integer not null default 3 check (min_lead_hours between 0 and 12), -- a slot must start at least this many hours after ordering
   test_payments    boolean not null default true    -- true until a real payment provider is connected
 );
 insert into public.app_settings default values;
@@ -224,6 +224,26 @@ begin
   return 'paid';
 end $$;
 
+-- Owner/manager: replace one region's ranking with a new order of products.
+-- "change" compares with the previous saved order (+ moved up), new entries get NEW.
+create or replace function public.save_ranking(p_region text, p_ids text[]) returns void
+language plpgsql set search_path = public as $$
+declare n integer := coalesce(array_length(p_ids, 1), 0);
+begin
+  if not public.has_role(array['owner','manager']) then raise exception 'forbidden'; end if;
+  if p_region not in ('all','japan','greater_china','sea','americas') then raise exception 'invalid_region'; end if;
+  if n > 100 then raise exception 'too_many'; end if;
+  if (select count(distinct x) from unnest(p_ids) x) <> n then raise exception 'duplicate_product'; end if;
+  if (select count(*) from public.products where id = any(p_ids)) <> n then raise exception 'unknown_product'; end if;
+  drop table if exists _old_rank;
+  create temp table _old_rank on commit drop as select product_id, rank from public.rankings where region = p_region;
+  delete from public.rankings where region = p_region;
+  insert into public.rankings (region, rank, product_id, change, is_new)
+    select p_region, t.ord, t.id, coalesce(o.rank - t.ord, 0), o.rank is null
+      from unnest(p_ids) with ordinality as t(id, ord)
+      left join _old_rank o on o.product_id = t.id;
+end $$;
+
 create or replace function public.touch_updated_at() returns trigger
 language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
 create trigger products_touch before update on public.products for each row execute function public.touch_updated_at();
@@ -269,10 +289,34 @@ grant  update (status, handover_photo_url) on public.orders to authenticated;
 grant execute on function public.lookup_order(text, text) to anon, authenticated;
 grant execute on function public.create_order(jsonb) to anon, authenticated;
 grant execute on function public.confirm_test_payment(text, text) to anon, authenticated;
+grant execute on function public.save_ranking(text, text[]) to authenticated;
+revoke execute on function public.save_ranking(text, text[]) from public, anon;
 grant execute on function public.staff_me() to authenticated;
 grant execute on function public.staff_list() to authenticated;
 revoke execute on function public.staff_me() from public, anon;
 revoke execute on function public.staff_list() from public, anon;
+
+-- ---------------------------------------------------------------------------
+-- Product photos (Supabase Storage). Anyone can view; owner/manager upload.
+-- If this part fails it only prints a notice; the rest of the setup still works.
+-- ---------------------------------------------------------------------------
+do $$
+begin
+  insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  values ('product-images', 'product-images', true, 5242880, array['image/jpeg','image/png','image/webp'])
+  on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg','image/png','image/webp'];
+  drop policy if exists product_images_insert on storage.objects;
+  drop policy if exists product_images_update on storage.objects;
+  drop policy if exists product_images_delete on storage.objects;
+  create policy product_images_insert on storage.objects for insert to authenticated
+    with check (bucket_id = 'product-images' and public.has_role(array['owner','manager']));
+  create policy product_images_update on storage.objects for update to authenticated
+    using (bucket_id = 'product-images' and public.has_role(array['owner','manager']));
+  create policy product_images_delete on storage.objects for delete to authenticated
+    using (bucket_id = 'product-images' and public.has_role(array['owner','manager']));
+exception when others then
+  raise notice 'Product photo storage was not set up: %', sqlerrm;
+end $$;
 
 
 -- Sample data (fictional brands/products). Generated by scripts/make-seed.mjs.

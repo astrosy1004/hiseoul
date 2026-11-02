@@ -33,6 +33,12 @@ export async function startSignIn(email: string, password: string): Promise<Sign
     if (error.status === 401 || /api key/i.test(error.message)) return { ok: false, error: "Supabase 키가 맞지 않아요. .env.local의 Publishable key를 확인하세요." };
     return { ok: false, error: `로그인하지 못했어요: ${error.message}` };
   }
+  return codeStep();
+}
+
+/** After the password: the authenticator-app step (QR code the first time). */
+async function codeStep(): Promise<SignInStep> {
+  if (!supabase) return { ok: false, error: "DB 미연결" };
   const { data: f, error: fe } = await supabase.auth.mfa.listFactors();
   if (fe) return { ok: false, error: fe.message };
   const totp = f.totp.find((x) => x.status === "verified");
@@ -42,6 +48,44 @@ export async function startSignIn(email: string, password: string): Promise<Sign
   const { data: en, error: ee } = await supabase.auth.mfa.enroll({ factorType: "totp", friendlyName: "HiSeoul admin" });
   if (ee) return { ok: false, error: ee.message };
   return { ok: true, factorId: en.id, enroll: { qr: en.totp.qr_code, secret: en.totp.secret } };
+}
+
+/**
+ * Invite or password-reset link: Supabase signs the person in from the link
+ * (…/admin/login?setup=1#access_token=…). Returns their email so they can
+ * choose a password, or null when this is a normal visit.
+ */
+export async function linkSignIn(): Promise<string | null> {
+  if (!supabase || !new URLSearchParams(location.search).has("setup")) return null;
+  const { data } = await supabase.auth.getSession();
+  history.replaceState(null, "", "/admin/login");
+  return data.session?.user.email ?? null;
+}
+
+let passwordAfterCode: string | undefined;
+
+/** Sets the password chosen from an invite/reset link, then goes on to the code step. */
+export async function setPassword(password: string): Promise<SignInStep> {
+  if (!supabase) return { ok: false, error: "DB 미연결" };
+  if (password.length < 8) return { ok: false, error: "비밀번호는 8자 이상으로 만들어 주세요." };
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    const code = (error as { code?: string }).code;
+    // Accounts that already use an authenticator app must enter the code first.
+    if (code === "insufficient_aal") { passwordAfterCode = password; return codeStep(); }
+    if (code === "same_password") return { ok: false, error: "예전과 다른 비밀번호를 써 주세요." };
+    if (code === "weak_password") return { ok: false, error: "더 길거나 복잡한 비밀번호를 써 주세요." };
+    return { ok: false, error: `비밀번호를 저장하지 못했어요: ${error.message}` };
+  }
+  return codeStep();
+}
+
+/** "Forgot password": emails a link back to this page. */
+export async function sendPasswordLink(email: string): Promise<string | null> {
+  if (!supabase) return "DB 미연결 상태에서는 쓸 수 없어요.";
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/admin/login?setup=1` });
+  if (error?.status === 429) return "메일을 너무 자주 보냈어요. 잠시 후 다시 해 주세요.";
+  return error ? `메일을 보내지 못했어요: ${error.message}` : null;
 }
 
 /** Step 2: 6-digit code. Returns the staff profile, or an error message. */
@@ -55,6 +99,11 @@ export async function verifyCode(factorId: string, code: string): Promise<Staff 
   }
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) return "코드가 맞지 않아요. 앱에 표시된 최신 코드를 입력하세요.";
+  if (passwordAfterCode) {
+    const { error: pe } = await supabase.auth.updateUser({ password: passwordAfterCode });
+    passwordAfterCode = undefined;
+    if (pe) return `비밀번호를 저장하지 못했어요: ${pe.message}`;
+  }
   const { data, error: se } = await supabase.rpc("staff_me");
   const me = !se && Array.isArray(data) && data[0];
   if (!me) { await supabase.auth.signOut(); return "직원으로 등록되지 않았거나 정지된 계정이에요. 대표에게 문의하세요."; }

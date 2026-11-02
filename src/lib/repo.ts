@@ -51,6 +51,14 @@ const orderError = (message: string) => new OrderError(ORDER_ERRORS.find((c) => 
 let mockOrders = sampleOrders.map((o) => ({ ...o }));
 let mockProducts = products.map((p) => ({ ...p }));
 let mockStaff = staff.map((s) => ({ ...s }));
+let mockRankings = rankings.map((r) => ({ ...r }));
+let mockSettings: Settings = { ...DEFAULT_SETTINGS };
+
+const fromProduct = (p: Product) => ({
+  id: p.id, category: p.category, brand: p.brand, name: p.name, description: p.description, store_price_krw: p.storePriceKrw,
+  image_url: p.imageUrl ?? null, skin_types: p.skinTypes?.length ? p.skinTypes : null, concerns: p.concerns?.length ? p.concerns : null,
+  routine_step: p.routineStep ?? null, visible: p.visible, stock: p.stock,
+});
 
 export const repo = {
   async listProducts(opts?: { category?: CategorySlug; includeHidden?: boolean }): Promise<Product[]> {
@@ -69,7 +77,7 @@ export const repo = {
 
   async ranking(region: Region, category?: CategorySlug, limit = 10): Promise<Ranked[]> {
     if (!supabase)
-      return rankings
+      return mockRankings
         .filter((r) => r.region === region)
         .sort((a, b) => a.rank - b.rank)
         .map((r) => ({ ...r, product: mockProducts.find((x) => x.id === r.productId)! }))
@@ -116,7 +124,7 @@ export const repo = {
   },
 
   async getSettings(): Promise<Settings> {
-    if (!supabase) return DEFAULT_SETTINGS;
+    if (!supabase) return mockSettings;
     const r = must(await supabase.from("app_settings").select("*").eq("id", 1).maybeSingle()) as Record<string, number & boolean> | null;
     return r ? { serviceFeeKrw: r.service_fee_krw, deliveryFeeKrw: r.delivery_fee_krw, cutoffHour: r.cutoff_hour, minLeadHours: r.min_lead_hours, testPayments: r.test_payments } : DEFAULT_SETTINGS;
   },
@@ -134,7 +142,7 @@ export const repo = {
       return order;
     }
     // Sample mode: same checks as the database function.
-    const s = DEFAULT_SETTINGS;
+    const s = mockSettings;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email.trim())) throw new OrderError("invalid_email");
     if (!o.guestName.trim()) throw new OrderError("invalid_name");
     if (!hotels.some((h) => h.id === o.hotelId)) throw new OrderError("invalid_hotel");
@@ -186,6 +194,62 @@ export const repo = {
   async setProductVisible(id: string, visible: boolean): Promise<void> {
     if (!supabase) { mockProducts = mockProducts.map((p) => (p.id === id ? { ...p, visible } : p)); return; }
     must(await supabase.from("products").update({ visible }).eq("id", id).select("id").single());
+  },
+
+  /** Owner/manager: create or update a product (rating and reviews are left as they are). */
+  async saveProduct(p: Product): Promise<void> {
+    if (!supabase) {
+      const i = mockProducts.findIndex((x) => x.id === p.id);
+      mockProducts = i < 0 ? [...mockProducts, p] : mockProducts.map((x) => (x.id === p.id ? p : x));
+      return;
+    }
+    must(await supabase.from("products").upsert(fromProduct(p)).select("id").single());
+  },
+
+  async setProductStock(id: string, stock: Product["stock"]): Promise<void> {
+    if (!supabase) { mockProducts = mockProducts.map((p) => (p.id === id ? { ...p, stock } : p)); return; }
+    must(await supabase.from("products").update({ stock }).eq("id", id).select("id").single());
+  },
+
+  /** Owner/manager: uploads a product photo, returns its public address. */
+  async uploadProductImage(productId: string, photo: Blob): Promise<string> {
+    if (!supabase) return new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.readAsDataURL(photo); });
+    const path = `${productId}/${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from("product-images").upload(path, photo, { contentType: "image/jpeg", cacheControl: "31536000" });
+    if (error) throw new Error(/bucket/i.test(error.message) ? "사진 저장소가 없어요. Supabase에서 setup.sql을 다시 실행해 주세요." : error.message);
+    return supabase.storage.from("product-images").getPublicUrl(path).data.publicUrl;
+  },
+
+  /** Admin: product ids in ranking order for a region, including hidden products. */
+  async rankingIds(region: Region): Promise<string[]> {
+    if (!supabase) return mockRankings.filter((r) => r.region === region).sort((a, b) => a.rank - b.rank).map((r) => r.productId);
+    return must(await supabase.from("rankings").select("product_id").eq("region", region).order("rank")).map((r: { product_id: string }) => r.product_id);
+  },
+
+  /** Owner/manager: replaces a region's ranking; changes are measured against the previous save. */
+  async saveRanking(region: Region, ids: string[]): Promise<void> {
+    if (!supabase) {
+      const old = mockRankings.filter((r) => r.region === region);
+      mockRankings = [...mockRankings.filter((r) => r.region !== region), ...ids.map((productId, i) => {
+        const before = old.find((r) => r.productId === productId);
+        return { productId, region, rank: i + 1, change: before ? before.rank - (i + 1) : ("new" as const) };
+      })];
+      return;
+    }
+    must(await supabase.rpc("save_ranking", { p_region: region, p_ids: ids }));
+  },
+
+  /** Owner only. */
+  async saveSettings(s: Settings): Promise<void> {
+    if (!supabase) { mockSettings = { ...s }; return; }
+    must(await supabase.from("app_settings").update({
+      service_fee_krw: s.serviceFeeKrw, delivery_fee_krw: s.deliveryFeeKrw, cutoff_hour: s.cutoffHour, min_lead_hours: s.minLeadHours, test_payments: s.testPayments,
+    }).eq("id", 1).select("id").single());
+  },
+
+  /** Sample mode only: what the invite route does with a database. */
+  addMockStaff(s: Pick<Staff, "name" | "email" | "role">) {
+    mockStaff = [...mockStaff, { ...s, id: `s-${Date.now()}`, active: true, mfaEnabled: false }];
   },
 
   /** Owner only. */
